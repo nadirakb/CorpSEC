@@ -286,6 +286,11 @@ async def build_snapshot(
         headers = {"Authorization": f"Bearer {wordfence_key}"}
         with tempfile.TemporaryFile() as f:
             async with client.stream("GET", WORDFENCE_URL, headers=headers, timeout=600) as r:
+                if r.status_code == 429:
+                    log.warning(
+                        "wordfence rate limit hit; Retry-After: %s",
+                        r.headers.get("retry-after", "not given"),
+                    )
                 r.raise_for_status()
                 async for chunk in r.aiter_bytes():
                     f.write(chunk)
