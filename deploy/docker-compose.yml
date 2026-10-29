@@ -1,4 +1,5 @@
 # Local development stack: docker compose -f deploy/docker-compose.yml up --build
+# Web app: http://localhost:3000  API: http://localhost:8000
 name: corpsec
 
 x-app: &app
@@ -66,6 +67,16 @@ services:
       redis: { condition: service_healthy }
       # Not waited for: the worker picks the snapshot up whenever the file appears.
       intel-sync: { condition: service_started }
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        CORPSEC_API_URL: http://api:8000
+    image: corpsec-web:dev
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: [api]
 
 volumes:
   pgdata:

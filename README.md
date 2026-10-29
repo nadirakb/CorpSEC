@@ -6,7 +6,7 @@ CorpSEC checks a website or domain and returns an A–F grade, the three things 
 
 It is inspired by professional tools such as OWASP ZAP, Nmap, OpenVAS, Burp Suite, Qualys and Acunetix, but is built for small businesses, freelancers, schools and NGOs rather than security specialists.
 
-> **Status:** pre-alpha — milestone M2 (grading & explanations). 55 checks, intel sync, A–F grading, plain-language explanations and a vulnerable test lab are in place; no web UI yet.
+> **Status:** pre-alpha — milestone M3 (web app). Run a scan in the browser, watch it live, read an A–F report in plain language, re-check fixes. No accounts yet (M4).
 
 ## What the MVP checks
 
@@ -32,7 +32,7 @@ Requires [uv](https://docs.astral.sh/uv/) and Docker.
 uv sync                                    # install workspace + dev tools
 uv run corpsec-intel-sync --out intel.json # fetch vulnerability/product data (optional; see below)
 uv run corpsec-scan example.com --intel intel.json   # scan from the command line, prints JSON
-docker compose -f deploy/docker-compose.yml up --build   # Postgres, Redis, API (:8000), worker
+docker compose -f deploy/docker-compose.yml up --build   # Postgres, Redis, API (:8000), worker, web (:3000)
 ```
 
 ```bash
@@ -65,6 +65,7 @@ Without a key the sync skips this source and WordPress vulnerability checks stay
 | `packages/checks` | Check catalog: one module per check, grouped by area (`connection/`, `tls/`, `website/`, `software/`, `exposure/`, `mail/`), registered via the `corpsec.checks` entry point |
 | `packages/grader` | Grading model: score, A+ to F letter, caps, stage grades, fix-first priority (spec §9) |
 | `packages/intel` | `corpsec-intel-sync`: builds the vulnerability/product snapshot used by software checks |
+| `apps/web` | Next.js web app: landing page, live scan progress, report with fix guides ([README](apps/web/README.md)) |
 | `apps/api` | FastAPI app, SQLAlchemy models, Alembic migrations, arq worker |
 | `deploy` | Dockerfile and docker-compose for local development |
 | `deploy/lab` | Vulnerable lab: a broken and a hardened site on an isolated network, scanned end-to-end in CI |

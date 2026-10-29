@@ -1,7 +1,7 @@
 check_id: TLS-003
 title: "Your site still allows an old, weak way to connect"
 pass_title: "Old, weak ways to connect are turned off"
-summary: "Your server still accepts {{item|an outdated security version}}. It is more than 15 years old and has known weaknesses."
+summary: "Your server still accepts an outdated way to make a secure connection. It is more than 15 years old and has known weaknesses."
 analogy: "It is like keeping an old key that copies easily, next to your new one."
 why_it_matters:
   - "Attackers can try to force a visitor's connection onto the weak version."

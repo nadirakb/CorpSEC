@@ -4,9 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from corpsec_api.db import AuditLog
 from corpsec_api.scans import execute_scan
-from corpsec_scanner import ScanOptions, load_checks
 
-from .conftest import FakeQueue, pytestmark  # noqa: F401
+from .conftest import FakeQueue, http_checks, mock_options, pytestmark  # noqa: F401
 
 
 def site_handler(req: httpx.Request) -> httpx.Response:
@@ -46,11 +45,8 @@ async def test_scan_end_to_end(
     r = await client.get(f"/v1/scans/{scan_id}")
     assert r.json()["status"] == "queued"
 
-    options = ScanOptions(
-        preflight=False, transport_factory=lambda verify: httpx.MockTransport(site_handler)
-    )
-    # Only checks that use HTTP: the mock transport doesn't cover DNS or raw TLS.
-    checks = [c for c in load_checks() if c.id in ("CONN-001", "CONN-002")]
+    options = mock_options(site_handler)
+    checks = http_checks()
     status = await execute_scan(sessions, scan_id, checks, options)
     assert status == "completed"
     # a second run of the same job is a no-op

@@ -4,3 +4,5 @@
 **/.mypy_cache
 **/.ruff_cache
 .git
+**/node_modules
+**/.next

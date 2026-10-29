@@ -1,0 +1,46 @@
+import type { Metadata } from "next";
+import { Fraunces, Public_Sans } from "next/font/google";
+import Link from "next/link";
+
+import { t } from "@/lib/i18n";
+
+import "./globals.css";
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  axes: ["SOFT", "WONK", "opsz"],
+});
+const publicSans = Public_Sans({ subsets: ["latin"], variable: "--font-public-sans" });
+
+export const metadata: Metadata = {
+  title: t.meta.title,
+  description: t.meta.description,
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="en" className={`${fraunces.variable} ${publicSans.variable}`}>
+      <body className="text-ink antialiased">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-raised focus:px-4 focus:py-2"
+        >
+          {t.nav.skip}
+        </a>
+        <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-6 sm:px-8">
+          <Link href="/" className="group flex items-baseline gap-2" aria-label={t.nav.home}>
+            <span className="font-display text-2xl font-semibold tracking-tight">CorpSEC</span>
+            <span className="hidden text-sm text-ink-soft sm:inline">{t.nav.tagline}</span>
+          </Link>
+        </header>
+        <main id="main" className="mx-auto max-w-5xl px-5 pb-24 sm:px-8">
+          {children}
+        </main>
+        <footer className="mx-auto max-w-5xl border-t border-rule px-5 py-8 text-sm text-ink-soft sm:px-8">
+          {t.footer.responsible}
+        </footer>
+      </body>
+    </html>
+  );
+}

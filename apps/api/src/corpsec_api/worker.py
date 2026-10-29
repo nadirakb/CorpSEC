@@ -9,9 +9,11 @@ from arq.connections import RedisSettings
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from corpsec_api.db import make_engine
-from corpsec_api.scans import execute_scan
+from corpsec_api.progress import RedisProgressBus
+from corpsec_api.scans import execute_recheck, execute_scan
 from corpsec_api.settings import get_settings
 from corpsec_scanner import ScanOptions, load_checks
+from corpsec_scanner.engine import ProgressEvent
 from corpsec_scanner.intel import EMPTY_SNAPSHOT, IntelSnapshot, load_snapshot
 
 
@@ -46,13 +48,39 @@ async def shutdown(ctx: dict[str, Any]) -> None:
 
 
 async def run_scan_job(ctx: dict[str, Any], scan_id: str) -> str | None:
+    bus = RedisProgressBus(ctx["redis"])
+    stage_totals: dict[str, int] = {}
+    for check in ctx["checks"]:
+        stage_totals[check.stage.value] = stage_totals.get(check.stage.value, 0) + 1
+
+    async def on_progress(event: ProgressEvent) -> None:
+        await bus.publish(
+            scan_id,
+            {
+                "type": "progress",
+                "check_id": event.check_id,
+                "stage": event.stage.value,
+                "completed": event.completed,
+                "total": event.total,
+                "stage_totals": stage_totals,
+            },
+        )
+
     options = ScanOptions(intel=ctx["intel"].get())
-    status = await execute_scan(ctx["sessions"], scan_id, ctx["checks"], options)
+    try:
+        status = await execute_scan(ctx["sessions"], scan_id, ctx["checks"], options, on_progress)
+    finally:
+        await bus.publish(scan_id, {"type": "done"})
     return status.value if status else None
 
 
+async def recheck_finding_job(ctx: dict[str, Any], finding_id: str) -> dict[str, Any] | None:
+    options = ScanOptions(intel=ctx["intel"].get())
+    return await execute_recheck(ctx["sessions"], finding_id, ctx["checks"], options)
+
+
 class WorkerSettings:
-    functions: ClassVar[list[Any]] = [run_scan_job]
+    functions: ClassVar[list[Any]] = [run_scan_job, recheck_finding_job]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
