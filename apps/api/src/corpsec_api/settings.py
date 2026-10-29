@@ -8,6 +8,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://corpsec:corpsec@localhost:5432/corpsec"
     redis_url: str = "redis://localhost:6379/0"
+    intel_path: str | None = None
+    """Snapshot written by ``corpsec-intel-sync``; reloaded when the file changes."""
 
 
 @lru_cache

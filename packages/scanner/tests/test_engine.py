@@ -20,6 +20,7 @@ from corpsec_scanner import (
 )
 from corpsec_scanner.engine import PlanError, plan
 from corpsec_scanner.models import CheckRunStatus
+from corpsec_scanner.netguard import NetConfig
 
 SCHEMA = json.loads((Path(__file__).parents[3] / "schemas" / "finding.schema.json").read_text())
 
@@ -168,12 +169,23 @@ async def test_scan_budget_marks_unfinished_checks() -> None:
     assert statuses["TST-002"] == CheckRunStatus.TIMEOUT
 
 
-async def test_preflight_refuses_private_target(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_preflight_refuses_private_target() -> None:
     async def fake_resolve(host: str, port: int = 443) -> list[str]:
-        return ["10.0.0.5"]
+        return ["93.184.215.14", "10.0.0.5"]
 
-    monkeypatch.setattr("corpsec_scanner.engine.resolve_host", fake_resolve)
-    result = await run_scan("example.com", [Producer()], options=ScanOptions())
+    options = ScanOptions(net=NetConfig(resolver=fake_resolve))
+    result = await run_scan("example.com", [Producer()], options=options)
     assert result.status == ScanStatus.FAILED
     assert result.error == "CorpSEC can only check public websites."
     assert result.check_runs == []
+
+
+def test_plan_orders_optional_uses() -> None:
+    class OptionalConsumer(Consumer):
+        id = "TST-006"
+        requires: ClassVar[frozenset[str]] = frozenset()
+        uses: ClassVar[frozenset[str]] = frozenset({"test.body"})
+
+    layers = plan([OptionalConsumer(), Producer()])
+    assert [[c.id for c in layer] for layer in layers] == [["TST-001"], ["TST-006"]]
+    assert plan([OptionalConsumer()])  # no producer is fine for optional facts

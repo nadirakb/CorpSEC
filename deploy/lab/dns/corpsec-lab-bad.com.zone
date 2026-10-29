@@ -1,0 +1,13 @@
+$ORIGIN corpsec-lab-bad.com.
+$TTL 60
+@   IN SOA ns.corpsec-lab-bad.com. admin.corpsec-lab-bad.com. 1 3600 600 86400 60
+@   IN NS  ns
+ns  IN A   172.30.0.53
+@   IN A   172.30.0.10
+; www points at a deleted cloud app -> subdomain takeover (DNS-004)
+www IN CNAME ghost-shop-2019.azurewebsites.net.
+; MX exists but no SPF / DMARC / DKIM
+@   IN MX  10 mail.corpsec-lab-bad.com.
+mail IN A  172.30.0.10
+; SPF that lets anyone send
+@   IN TXT "v=spf1 +all"

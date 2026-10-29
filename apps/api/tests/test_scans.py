@@ -49,10 +49,12 @@ async def test_scan_end_to_end(
     options = ScanOptions(
         preflight=False, transport_factory=lambda verify: httpx.MockTransport(site_handler)
     )
-    status = await execute_scan(sessions, scan_id, load_checks(), options)
+    # Only checks that use HTTP: the mock transport doesn't cover DNS or raw TLS.
+    checks = [c for c in load_checks() if c.id in ("CONN-001", "CONN-002")]
+    status = await execute_scan(sessions, scan_id, checks, options)
     assert status == "completed"
     # a second run of the same job is a no-op
-    assert await execute_scan(sessions, scan_id, load_checks(), options) is None
+    assert await execute_scan(sessions, scan_id, checks, options) is None
 
     body = (await client.get(f"/v1/scans/{scan_id}")).json()
     assert body["status"] == "completed"

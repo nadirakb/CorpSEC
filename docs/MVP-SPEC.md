@@ -150,6 +150,8 @@ Hard limits enforced in the worker (not just in the UI):
 
 Each check has a stable ID, a version, a category, a default severity, and a plain-language template (§8). Checks are grouped into the five progress stages shown to the user.
 
+Internal collector checks (e.g. `CRAWL-001`, which crawls pages and records robots.txt and the soft-404 baseline for other checks) produce no findings and are hidden in the UI.
+
 Severity levels (user-facing label in brackets):
 
 - `critical` [Fix now] — actively exploitable or exposes secrets/data.
@@ -214,7 +216,9 @@ Nmap-style fingerprinting adapted to the web: identify technologies and versions
 | `SW-007` | WordPress user enumeration via `/wp-json/wp/v2/users` | low |
 | `SW-008` | WordPress `xmlrpc.php` enabled | low |
 
-Data sources: NVD CVE API 2.0, CISA KEV catalog, OSV.dev, WordPress.org API (core/plugin latest versions), Wordfence Intelligence / WPScan vulnerability DB (license to confirm, §14), retire.js repository (for JS libs). Synced into a local DB nightly; scans never call third-party APIs inline.
+Data sources: NVD CVE API 2.0, CISA KEV catalog, OSV.dev, WordPress.org API (core/plugin latest versions), Wordfence Intelligence / WPScan vulnerability DB (license to confirm, §14), retire.js repository (for JS libs). Synced nightly into a local snapshot; scans never call third-party APIs inline.
+
+*Implemented (M1):* the snapshot is a JSON file written atomically by `corpsec-intel-sync` (packages/intel) rather than database tables, so scan workers need no database credentials (§15). Sources wired up: WordPress.org (latest core), endoflife.date (PHP, nginx, Apache, WordPress, Drupal, Joomla release lines), retire.js, CISA KEV, IANA RDAP bootstrap. **WordPress core/plugin vulnerability data is not wired up yet** — it depends on §17 Q1; SW-003/SW-004 therefore only report for products the snapshot has data for.
 
 Version matching rule: only report `SW-003/004/005` when a **specific version** was observed. "WordPress detected, version unknown" never produces a vulnerability finding (false-positive control).
 
@@ -532,9 +536,9 @@ CorpSEC/
 │   └── api/                 # FastAPI app
 ├── packages/
 │   ├── scanner/             # scan engine, ScanContext, stages
-│   ├── checks/              # one folder per check: check.py, explain.en.yaml, tests/
+│   ├── checks/              # one module per check, grouped by area (connection/, tls/, …)
 │   ├── grader/              # scoring & caps
-│   └── intel/               # vuln-data sync jobs
+│   └── intel/               # vuln-data sync (writes the intel snapshot)
 ├── schemas/                 # JSON Schemas (finding, scan, check manifest)
 ├── docs/                    # specs, ADRs
 ├── deploy/                  # docker-compose, IaC

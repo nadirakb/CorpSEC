@@ -30,10 +30,15 @@ class Check(ABC):
     stage: ClassVar[Stage]
     requires: ClassVar[frozenset[str]] = frozenset()
     provides: ClassVar[frozenset[str]] = frozenset()
+    uses: ClassVar[frozenset[str]] = frozenset()
+    """Optional facts: run after their producers, but still run if they are missing."""
+    internal: ClassVar[bool] = False
+    """Collectors that only gather facts for other checks (e.g. the crawler); hidden in the UI."""
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
-        if getattr(cls, "__abstractmethods__", None):
+        # Shared base classes (no ``id`` of their own) are validated through their subclasses.
+        if getattr(cls, "__abstractmethods__", None) or "id" not in cls.__dict__:
             return
         if not CHECK_ID_RE.match(getattr(cls, "id", "")):
             raise TypeError(f"{cls.__name__}: invalid check id {getattr(cls, 'id', None)!r}")

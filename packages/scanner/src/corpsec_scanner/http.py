@@ -10,7 +10,7 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx
 
-from corpsec_scanner.netguard import DEFAULT_IP_POLICY, GuardedTransport, IpPolicy
+from corpsec_scanner.netguard import DEFAULT_NET, GuardedTransport, NetConfig
 
 USER_AGENT = "CorpSEC/0.1 (+https://corpsec.app/bot)"
 ALLOWED_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -91,9 +91,9 @@ class _HostLimiter:
         self._sem.release()
 
 
-def _default_transport_factory(ip_policy: IpPolicy) -> TransportFactory:
+def _default_transport_factory(net: NetConfig) -> TransportFactory:
     def factory(verify: bool) -> httpx.AsyncBaseTransport:
-        return GuardedTransport(verify=verify, policy=ip_policy)
+        return GuardedTransport(verify=verify, net=net)
 
     return factory
 
@@ -104,12 +104,12 @@ class SafeHttpClient:
         in_scope: Callable[[str], bool],
         policy: HttpPolicy | None = None,
         *,
-        ip_policy: IpPolicy = DEFAULT_IP_POLICY,
+        net: NetConfig = DEFAULT_NET,
         transport_factory: TransportFactory | None = None,
     ) -> None:
         self._in_scope = in_scope
         self.policy = policy or HttpPolicy()
-        self._transport_factory = transport_factory or _default_transport_factory(ip_policy)
+        self._transport_factory = transport_factory or _default_transport_factory(net)
         self._clients: dict[bool, httpx.AsyncClient] = {}
         self._limiters: dict[str, _HostLimiter] = {}
         self._requests = 0

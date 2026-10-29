@@ -6,7 +6,9 @@ from typing import Any
 
 from corpsec_scanner.dns import DnsClient
 from corpsec_scanner.http import SafeHttpClient
+from corpsec_scanner.intel import EMPTY_SNAPSHOT, IntelSnapshot
 from corpsec_scanner.target import ScanTarget
+from corpsec_scanner.tls import TlsProber
 
 
 class FactError(Exception):
@@ -30,6 +32,16 @@ class Facts:
 
 
 class ScanContext:
+    """Everything a check may use.
+
+    * ``http`` — scope-locked to the target's registrable domain.
+    * ``external`` — for well-known public services only (RDAP registries). Not scope-locked,
+      still SSRF-guarded and budgeted. Never use it to reach the target.
+    * ``tls`` — raw TLS handshakes / ClientHello probes.
+    * ``dns`` — cached per scan.
+    * ``intel`` — local vulnerability snapshot (may be empty).
+    """
+
     def __init__(
         self,
         *,
@@ -37,12 +49,18 @@ class ScanContext:
         target: ScanTarget,
         http: SafeHttpClient,
         dns: DnsClient,
+        tls: TlsProber | None = None,
+        external: SafeHttpClient | None = None,
+        intel: IntelSnapshot = EMPTY_SNAPSHOT,
         facts: Facts | None = None,
     ) -> None:
         self.scan_id = scan_id
         self.target = target
         self.http = http
         self.dns = dns
+        self.tls = tls or TlsProber()
+        self.external = external or http
+        self.intel = intel
         self.facts = facts or Facts()
         self._writable: frozenset[str] = frozenset()
 
@@ -53,6 +71,9 @@ class ScanContext:
             target=self.target,
             http=self.http,
             dns=self.dns,
+            tls=self.tls,
+            external=self.external,
+            intel=self.intel,
             facts=self.facts,
         )
         view._writable = provides

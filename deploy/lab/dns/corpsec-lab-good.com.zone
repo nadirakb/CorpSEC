@@ -1,0 +1,17 @@
+$ORIGIN corpsec-lab-good.com.
+$TTL 60
+@   IN SOA ns.corpsec-lab-good.com. admin.corpsec-lab-good.com. 1 3600 600 86400 60
+@   IN NS  ns
+ns  IN A   172.30.0.53
+@   IN A   172.30.0.20
+www IN A   172.30.0.20
+@   IN MX  10 mail.corpsec-lab-good.com.
+mail IN A  172.30.0.20
+@   IN TXT "v=spf1 mx -all"
+_dmarc IN TXT "v=DMARC1; p=reject; rua=mailto:dmarc@corpsec-lab-good.com"
+default._domainkey IN TXT "v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlab"
+_mta-sts IN TXT "v=STSv1; id=20261029"
+_smtp._tls IN TXT "v=TLSRPTv1; rua=mailto:tls@corpsec-lab-good.com"
+@   IN CAA 0 issue "letsencrypt.org"
+; Normally published by the parent zone; served here so DNS-002 sees it in the lab.
+@   IN DS  2371 13 2 C988EC423E3880EB8DD8A46FE06CA230EE23F35B578D8E0A7CAB4A1A1DC6E3E5
