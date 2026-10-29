@@ -1,0 +1,18 @@
+check_id: DNS-003
+title: "Any company can issue certificates for your domain"
+pass_title: "Only your chosen companies can issue your certificates"
+summary: "Your domain does not say which companies may create security certificates for it (a CAA record)."
+why_it_matters:
+  - "If one of the many certificate companies is tricked, it could issue a fake certificate for your site."
+  - "This is extra protection, not urgent."
+fix:
+  default:
+    - "Find out which company issues your certificate. Most hosts use Let's Encrypt."
+    - "In your DNS settings, add a CAA record for {{domain}} with the tag issue and that company's name, like letsencrypt.org."
+  cloudflare:
+    - "In Cloudflare, go to DNS, then Records, then Add record."
+    - "Choose type CAA, name @, tag Only allow specific hostnames, and value letsencrypt.org."
+    - "If you use Cloudflare's own certificates, also add pki.goog and digicert.com."
+effort_minutes: 10
+who_can_fix: "Whoever manages your domain."
+technical: "No CAA record at {{domain}}."

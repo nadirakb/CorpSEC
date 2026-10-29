@@ -1,0 +1,16 @@
+check_id: EXP-004
+title: "A backup of your site or database can be downloaded"
+pass_title: "No site backups are downloadable"
+summary: "A backup file ({{item}}) is stored on your public website. Anyone can download it."
+analogy: "It is like leaving a full copy of your customer files on the sidewalk."
+why_it_matters:
+  - "Backups often contain customer details and passwords."
+  - "Leaking customer data can break privacy laws."
+fix:
+  default:
+    - "Delete {{item|the file}} from your website today."
+    - "Keep backups in a private place, not in the website folder."
+    - "If it held customer data or passwords, change the passwords and get advice on telling customers."
+effort_minutes: 30
+who_can_fix: "Your web host or developer."
+technical: "{{item}} is publicly downloadable (archive/SQL dump signature)."

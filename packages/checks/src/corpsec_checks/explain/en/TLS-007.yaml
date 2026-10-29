@@ -1,0 +1,23 @@
+check_id: TLS-007
+title: "Browsers are not told to always use the secure version"
+pass_title: "Browsers are told to always use the secure version"
+summary: "Your site does not tell browsers to remember to use the secure link every time, so the first visit can still be tricked."
+analogy: "It is like a sign that says always use the front door, which you have not put up yet."
+why_it_matters:
+  - "On public Wi-Fi, someone can trick a visitor into the unsafe version before the redirect happens."
+fix:
+  default:
+    - "Make sure every page already works on https."
+    - "Ask your web host or IT person to add the HSTS setting with a max-age of at least 180 days."
+    - "Press Check again."
+  cloudflare:
+    - "In Cloudflare, go to SSL/TLS, then Edge Certificates."
+    - "Find HTTP Strict Transport Security and press Enable."
+    - "Set Max Age to 6 months or more."
+  wordpress:
+    - "Ask your host to add the HSTS setting, or use a WordPress security plugin that can add it."
+    - "Press Check again."
+effort_minutes: 15
+who_can_fix: "Your web host or IT person."
+technical: "Missing or short Strict-Transport-Security header (max-age={{max_age|none}}). Recommended: max-age=31536000; includeSubDomains."
+variables: [max_age]

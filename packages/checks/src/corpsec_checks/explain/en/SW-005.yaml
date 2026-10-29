@@ -1,0 +1,17 @@
+check_id: SW-005
+title: "Your site uses an old code library with known holes"
+pass_title: "Your site's code libraries have no known holes"
+summary: "Your pages load {{product|a code library}} {{version}}, which has known security holes."
+why_it_matters:
+  - "Some of these holes let attackers run their own code in your visitors' browsers."
+fix:
+  default:
+    - "Ask your web designer to update {{product|the library}} to the newest version."
+    - "Test the site afterwards, since big updates can change how pages work."
+  wordpress:
+    - "Update your theme and all plugins in Dashboard, then Updates."
+    - "If the old library still shows, ask the theme maker or your developer which part adds it."
+effort_minutes: 60
+who_can_fix: "Your web designer or developer."
+technical: "{{product}} {{version}} detected from script URL; {{total}} known vulnerabilities (retire.js data)."
+variables: [product, version, total]

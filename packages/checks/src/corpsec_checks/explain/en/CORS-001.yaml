@@ -1,0 +1,15 @@
+check_id: CORS-001
+title: "Other websites can read your visitors' private data"
+pass_title: "Other websites can't read your visitors' data"
+summary: "Your site lets any other website ask for data in the name of a logged-in visitor and read the answer."
+analogy: "It is like a bank teller who gives account details to anyone holding a customer's bag."
+why_it_matters:
+  - "A bad website can quietly read account details of anyone who visits it while logged in to your site."
+fix:
+  default:
+    - "Ask your developer to list only your own websites as allowed origins."
+    - "Never combine credentials with a wildcard or a copied Origin value."
+    - "Press Check again."
+effort_minutes: 60
+who_can_fix: "Your developer."
+technical: "Access-Control-Allow-Origin reflects an arbitrary Origin (or is * / null) together with Access-Control-Allow-Credentials: true."

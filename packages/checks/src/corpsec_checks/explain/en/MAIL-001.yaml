@@ -1,0 +1,8 @@
+check_id: MAIL-001
+title: "Email for {{domain}} is handled by {{email_provider_name|your mail servers}}"
+pass_title: "We found who handles your email"
+summary: "We found who receives email for {{domain}}. We use this to show you the right steps for your email provider."
+why_it_matters:
+  - "This is not a problem. It helps us tailor the fixes below."
+effort_minutes: 0
+technical: "MX: see evidence."

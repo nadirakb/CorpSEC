@@ -1,0 +1,19 @@
+check_id: TLS-003
+title: "Your site still allows an old, weak way to connect"
+pass_title: "Old, weak ways to connect are turned off"
+summary: "Your server still accepts {{item|an outdated security version}}. It is more than 15 years old and has known weaknesses."
+analogy: "It is like keeping an old key that copies easily, next to your new one."
+why_it_matters:
+  - "Attackers can try to force a visitor's connection onto the weak version."
+  - "Card payment rules (PCI) say this must be turned off."
+fix:
+  default:
+    - "Ask your web host or IT person to turn off TLS 1.0 and TLS 1.1."
+    - "Only TLS 1.2 and TLS 1.3 should stay on."
+    - "Press Check again."
+  cloudflare:
+    - "In Cloudflare, go to SSL/TLS, then Edge Certificates."
+    - "Set Minimum TLS Version to TLS 1.2."
+effort_minutes: 15
+who_can_fix: "Your web host or IT person."
+technical: "Server accepted a ClientHello offering only {{item}}. Disable TLS 1.0/1.1 (e.g. nginx ssl_protocols TLSv1.2 TLSv1.3;)."

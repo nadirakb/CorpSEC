@@ -1,0 +1,18 @@
+check_id: HDR-002
+title: "Other sites can show your pages inside theirs"
+pass_title: "Other sites can't show your pages inside theirs"
+summary: "Any website can place your pages inside its own, hidden or disguised. This trick is called clickjacking."
+analogy: "It is like someone putting a fake glass over your shop window to change what people click."
+why_it_matters:
+  - "Visitors can be tricked into clicking buttons on your site, like Buy or Delete, without knowing."
+fix:
+  default:
+    - "Ask your web host or developer to add X-Frame-Options with the value SAMEORIGIN."
+    - "Or add frame-ancestors 'self' to your Content-Security-Policy."
+    - "Press Check again."
+  cloudflare:
+    - "In Cloudflare, go to Rules, then Transform Rules, then Modify Response Header."
+    - "Add a header named X-Frame-Options with the value SAMEORIGIN."
+effort_minutes: 15
+who_can_fix: "Your web host or developer."
+technical: "Neither CSP frame-ancestors nor X-Frame-Options DENY/SAMEORIGIN is set."

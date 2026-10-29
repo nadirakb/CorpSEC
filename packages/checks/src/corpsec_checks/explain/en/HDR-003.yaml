@@ -1,0 +1,15 @@
+check_id: HDR-003
+title: "Browsers are allowed to guess file types"
+pass_title: "Browsers don't guess file types"
+summary: "Your site lets browsers guess what kind of file they get. A file that looks harmless could be run as code."
+why_it_matters:
+  - "If people can upload files to your site, a bad upload could run in visitors' browsers."
+fix:
+  default:
+    - "Ask your web host or developer to add X-Content-Type-Options with the value nosniff."
+  cloudflare:
+    - "In Cloudflare, go to Rules, then Transform Rules, then Modify Response Header."
+    - "Add a header named X-Content-Type-Options with the value nosniff."
+effort_minutes: 10
+who_can_fix: "Your web host or developer."
+technical: "Missing X-Content-Type-Options: nosniff."

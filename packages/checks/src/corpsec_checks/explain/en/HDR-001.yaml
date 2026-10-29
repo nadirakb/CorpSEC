@@ -1,0 +1,20 @@
+check_id: HDR-001
+title: "Your site has no rule about which scripts may run"
+pass_title: "Your site limits which scripts may run"
+summary: "Your pages don't tell the browser which outside code is allowed. If a bad script gets in, the browser will run it."
+analogy: "It is like a party with no guest list. Anyone who walks in is let in."
+why_it_matters:
+  - "If an attacker sneaks a script onto a page, it can steal logins or card details."
+  - "This rule is a strong safety net when something else goes wrong."
+fix:
+  default:
+    - "Ask your web designer to add a Content-Security-Policy (CSP) to the site."
+    - "Start in report-only mode for a week so nothing breaks."
+    - "Then switch it on for real and press Check again."
+  cloudflare:
+    - "Ask your web designer for the right policy text first."
+    - "In Cloudflare, go to Rules, then Transform Rules, then Modify Response Header."
+    - "Add a header named Content-Security-Policy with that text."
+effort_minutes: 120
+who_can_fix: "Your web designer or developer."
+technical: "Missing Content-Security-Policy header, or script-src allows both 'unsafe-inline' and 'unsafe-eval'."

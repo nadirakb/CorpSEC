@@ -1,0 +1,27 @@
+check_id: TLS-001
+title: "Your website's security certificate is not valid"
+pass_title: "Your website's security certificate is valid"
+summary: "Browsers don't trust the certificate on {{host}}, so visitors see a full-page security warning."
+analogy: "It is like an ID card that is fake, expired, or has someone else's name on it."
+why_it_matters:
+  - "Most visitors leave as soon as they see the warning."
+  - "People who click through are not protected against eavesdroppers."
+  - "Online payments and many apps refuse to work with your site."
+fix:
+  default:
+    - "Log in to your web host and find the SSL or Security section."
+    - "Turn on a free certificate (often called Let's Encrypt) for {{host}}."
+    - "If there is already one, renew it and make sure it covers this exact address."
+    - "Press Check again."
+  hosted:
+    - "{{platform_name|Your website builder}} provides the certificate for you."
+    - "Open your domain settings and reconnect the domain if it shows a problem."
+    - "If the warning stays for more than a day, contact their support."
+  cloudflare:
+    - "In Cloudflare, go to SSL/TLS, then Overview."
+    - "Set the mode to Full (strict) only if your host also has a valid certificate. Otherwise ask your host to add one first."
+    - "Check that the orange cloud is on for this address in DNS."
+effort_minutes: 30
+who_can_fix: "Your web host."
+technical: "Certificate verification failed: {{detail|see evidence}} (reason code {{problem|unknown}})."
+variables: [detail, problem]

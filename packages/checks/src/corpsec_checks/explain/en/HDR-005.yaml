@@ -1,0 +1,12 @@
+check_id: HDR-005
+title: "Your site doesn't limit access to camera, microphone or location"
+pass_title: "Your site limits access to camera, microphone and location"
+summary: "Your site can list the things it never uses, like the camera. Then a bad script can not use them either."
+why_it_matters:
+  - "This is an extra lock. It is good to have, but not urgent."
+fix:
+  default:
+    - "Ask your developer to add a Permissions-Policy that turns off features you don't use, like camera=(), microphone=(), geolocation=()."
+effort_minutes: 15
+who_can_fix: "Your developer."
+technical: "No Permissions-Policy header."

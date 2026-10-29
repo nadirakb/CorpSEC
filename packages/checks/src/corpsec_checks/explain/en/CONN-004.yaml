@@ -1,0 +1,20 @@
+check_id: CONN-004
+title: "Your secure page loads some parts insecurely"
+pass_title: "All parts of your homepage load securely"
+summary: "Your homepage is secure, but it pulls in some pictures, scripts or forms over an unsafe link."
+analogy: "It is like an armored truck with one window left open."
+why_it_matters:
+  - "Browsers may block those parts, so your page can look broken."
+  - "Someone on the same network could swap an unsafe script and take over the page."
+fix:
+  default:
+    - "Open the technical details below to see which files load unsafely."
+    - "Change each address from http to https, or remove the file."
+    - "Press Check again."
+  wordpress:
+    - "Install the plugin Really Simple SSL, which fixes most of these links."
+    - "Check your theme and page builder for images added with http addresses."
+    - "Press Check again."
+effort_minutes: 30
+who_can_fix: "Your web designer or whoever edits your website."
+technical: "Mixed content: the HTTPS homepage references http:// sub-resources or form actions (see evidence)."

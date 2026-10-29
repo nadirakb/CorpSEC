@@ -1,0 +1,21 @@
+check_id: TLS-002
+title: "Your security certificate expires very soon"
+pass_title: "Your security certificate is not about to expire"
+summary: "The certificate for {{host}} runs out in {{days_left|a few}} days. After that, visitors will see a security warning."
+analogy: "It is like a passport that is about to expire."
+why_it_matters:
+  - "When it expires, browsers block your site with a warning."
+  - "Shops and booking forms stop working until it is renewed."
+fix:
+  default:
+    - "Log in to your web host and open the SSL or Security section."
+    - "Renew the certificate now."
+    - "Turn on automatic renewal so this does not happen again."
+  hosted:
+    - "{{platform_name|Your website builder}} renews certificates for you."
+    - "Check that your domain is still connected and your plan is active."
+    - "If the date does not change within a day, contact their support."
+effort_minutes: 15
+who_can_fix: "Your web host."
+technical: "Certificate notAfter in {{days_left|?}} days."
+variables: [days_left]

@@ -1,0 +1,26 @@
+check_id: SW-002
+title: "Your website software is out of date"
+pass_title: "Your website software is up to date"
+summary: "Your site runs {{product|its platform}} {{version}}. The newest version is {{latest|newer}}."
+analogy: "It is like driving a car that missed its safety recalls."
+why_it_matters:
+  - "Updates fix security holes that attackers already know about."
+  - "Old versions are the most common way small websites get hacked."
+fix:
+  default:
+    - "Make a backup of your site first."
+    - "Ask your web designer or host to update to the newest version."
+    - "Press Check again."
+  wordpress:
+    - "Make a backup first. Many hosts have a one-click backup."
+    - "In WordPress, go to Dashboard, then Updates."
+    - "Press Update to version {{latest|the latest}}."
+    - "Turn on automatic updates for WordPress on the same page."
+  joomla:
+    - "Make a backup first."
+    - "In Joomla, go to System, then Update, then Joomla."
+    - "Install the update and press Check again."
+effort_minutes: 20
+who_can_fix: "You, your web designer, or your host."
+technical: "{{product}} {{version}} detected; latest stable {{latest}}."
+variables: [product, version, latest]

@@ -1,0 +1,14 @@
+check_id: CK-001
+title: "A login cookie can be sent without protection"
+pass_title: "Login cookies are only sent securely"
+summary: "The cookie {{item|that keeps people logged in}} can be sent over an unsafe link. Someone on the same network could copy it."
+analogy: "It is like sending your house key in a clear envelope."
+why_it_matters:
+  - "With a copied login cookie, an attacker can act as the logged-in person."
+fix:
+  default:
+    - "Ask your developer to add the Secure flag to the {{item|login}} cookie."
+    - "Make sure the whole site works over https first."
+effort_minutes: 15
+who_can_fix: "Your developer."
+technical: "Session-like cookie {{item}} set without the Secure attribute."

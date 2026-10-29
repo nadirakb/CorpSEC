@@ -1,0 +1,21 @@
+check_id: CONN-001
+title: "Your website does not open securely"
+pass_title: "Your website opens securely"
+summary: "We could not open {{host}} with a secure link (one that starts with https). Visitors may see a warning, or the site may not load at all."
+analogy: "It is like a shop with no lock on the door."
+why_it_matters:
+  - "Browsers show a big warning, and most visitors will leave."
+  - "Anything typed on the site, like names or card numbers, can be read by others on the same network."
+  - "Search engines rank sites without a secure link lower."
+fix:
+  default:
+    - "Log in to the company that hosts your website."
+    - "Look for a setting called SSL or Security and turn on the free certificate (often called Let's Encrypt)."
+    - "Wait up to one hour, then press Check again."
+  hosted:
+    - "Log in to {{platform_name|your website builder}}."
+    - "Open your domain settings and check that your domain is fully connected."
+    - "Your platform turns on the secure link for you once the domain is connected. If it is still off after a day, contact their support."
+effort_minutes: 30
+who_can_fix: "Your web host or the person who set up your website."
+technical: "No HTTPS response from https://{{host}}/ (port 443 closed, connection reset or TLS handshake failure)."

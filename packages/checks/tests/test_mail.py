@@ -95,6 +95,15 @@ async def test_non_sending_domain(scan: Scan) -> None:
     assert severities(result, "MAIL-007") == [Severity.MEDIUM]
 
 
+async def test_dns_provider_detected(scan: Scan) -> None:
+    records = dict(GOOD) | {
+        ("example.com", "NS"): ["ada.ns.cloudflare.com.", "bob.ns.cloudflare.com."]
+    }
+    result = await scan(MAIL, dns=FakeDns(records))
+    mx = next(f for f in result.findings if f.check_id == "MAIL-001")
+    assert mx.context == {"email_provider": "google_workspace", "dns_provider": "cloudflare"}
+
+
 def test_parse_mx_and_provider() -> None:
     assert parse_mx(["0 ."]) == []
     hosts = parse_mx(["10 example-com.mail.protection.outlook.com."])

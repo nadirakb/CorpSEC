@@ -1,0 +1,16 @@
+check_id: MAIL-003
+title: "Your email guest list lets strangers in"
+pass_title: "Your email guest list turns strangers away"
+summary: "Your list of allowed senders (SPF) does not tell other servers to turn away email from anyone not on the list."
+why_it_matters:
+  - "Fake emails from @{{domain}} are not blocked."
+  - "If the record ends with +all, anyone in the world is allowed to send as you."
+fix:
+  default:
+    - "In your DNS settings, open the TXT record that starts with v=spf1."
+    - "Change the ending to ~all (or -all when you are sure every sender is listed)."
+    - "Press Check again."
+effort_minutes: 10
+who_can_fix: "Whoever manages your domain or email."
+technical: "SPF all mechanism is {{all|missing}}; expected -all or ~all."
+variables: [all]

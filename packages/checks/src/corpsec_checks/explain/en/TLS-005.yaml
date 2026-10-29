@@ -1,0 +1,17 @@
+check_id: TLS-005
+title: "Your site allows weak encryption"
+pass_title: "Your site only uses strong encryption"
+summary: "Your server still accepts weak encryption ({{item|an outdated type}}). Data sent this way can be cracked."
+analogy: "It is like a safe with a lock that can be opened with a paper clip."
+why_it_matters:
+  - "Someone who records the traffic may be able to read it later."
+  - "Security audits and card payment rules fail on this."
+fix:
+  default:
+    - "Ask your web host or IT person to turn off weak cipher suites."
+    - "Show them the technical details below. They list the exact type found."
+    - "Press Check again."
+effort_minutes: 30
+who_can_fix: "Your web host or IT person."
+technical: "Server negotiated weak cipher suite {{cipher_suite|?}} (category {{item}}). Use a modern cipher list such as Mozilla's intermediate profile."
+variables: [cipher_suite]

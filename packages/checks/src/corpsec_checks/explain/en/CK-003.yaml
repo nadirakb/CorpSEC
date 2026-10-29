@@ -1,0 +1,12 @@
+check_id: CK-003
+title: "A login cookie is sent along with requests from other sites"
+pass_title: "Login cookies stay on your own site"
+summary: "Your login cookie {{item}} has no rule to stay on your own site. Other sites can make your visitors' browsers use it."
+why_it_matters:
+  - "Another site could make a logged-in visitor take actions on your site without knowing."
+fix:
+  default:
+    - "Ask your developer to set SameSite=Lax on the {{item|login}} cookie."
+effort_minutes: 15
+who_can_fix: "Your developer."
+technical: "Session-like cookie {{item}} has no SameSite attribute (or SameSite=None without Secure)."

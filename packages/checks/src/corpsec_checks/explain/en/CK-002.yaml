@@ -1,0 +1,15 @@
+check_id: CK-002
+title: "A login cookie can be read by page scripts"
+pass_title: "Login cookies are hidden from page scripts"
+summary: "Scripts running on your pages can read the cookie {{item|that keeps people logged in}}. A bad script could steal it."
+why_it_matters:
+  - "If a harmful script ever gets onto your site, it can take over visitors' accounts."
+fix:
+  default:
+    - "Ask your developer to add the HttpOnly flag to the {{item|login}} cookie."
+  wordpress:
+    - "On WordPress this cookie usually comes from a plugin or your host's settings."
+    - "Ask your host or the plugin maker to set the HttpOnly flag on {{item|this cookie}}."
+effort_minutes: 15
+who_can_fix: "Your developer."
+technical: "Session-like cookie {{item}} set without HttpOnly."

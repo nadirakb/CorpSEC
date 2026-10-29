@@ -1,0 +1,29 @@
+check_id: CONN-002
+title: "Visitors are not sent to the secure version of your site"
+pass_title: "Visitors are always sent to the secure version of your site"
+summary: "When someone types {{host}} without https, your site opens in an unsafe mode instead of moving them to the safe version."
+analogy: "It is like having a locked front door, but leaving the back door open too."
+why_it_matters:
+  - "People who type your address by hand land on the unsafe version."
+  - "On public Wi-Fi, someone nearby can change what those visitors see."
+fix:
+  default:
+    - "Ask your web host or web designer to send all visitors from http to https."
+    - "Tell them you want a permanent redirect (code 301) for every page."
+    - "Press Check again when they say it is done."
+  wordpress:
+    - "In WordPress, go to Settings, then General."
+    - "Make sure both address fields start with https."
+    - "Install the plugin Really Simple SSL and turn it on, or ask your host to add the redirect."
+    - "Press Check again."
+  cloudflare:
+    - "Log in to Cloudflare and open your domain."
+    - "Go to SSL/TLS, then Edge Certificates."
+    - "Turn on Always Use HTTPS."
+  hosted:
+    - "{{platform_name|Your website builder}} does this for you once your domain is fully connected."
+    - "Open your domain settings and check that the domain is connected and the secure link is on."
+    - "If it still fails, contact their support."
+effort_minutes: 15
+who_can_fix: "Your web host, your web designer, or you if you use WordPress."
+technical: "http://{{host}}/ answered without redirecting to https (no 301/308 to an https:// URL)."

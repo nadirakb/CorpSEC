@@ -346,7 +346,7 @@ Findings are de-duplicated across scans by `(site_id, check_id, host, dedupe_key
 
 ### 8.2 Explanation templates (Burp-style issue definitions, rewritten for non-experts)
 
-Each check ships a template file `checks/<ID>/explain.<lang>.yaml`:
+Each check ships a template file `packages/checks/src/corpsec_checks/explain/<lang>/<ID>.yaml` (one folder per language, so translators work in one place). *Implemented (M2):* besides the fields below, templates have `pass_title` (shown in the Passed list), `effort_minutes` (number, used by the fix-first priority) and `variables` (placeholders beyond the global `domain`, `host`, `item`, `*_name`). Placeholders support fallbacks: `{{days_left|a few}}`. Fix variants are chosen by email provider, website platform, DNS provider (detected from NS records), then `hosted` for Shopify/Wix/Squarespace/Webflow, then `default`:
 
 ```yaml
 title: "Anyone can send emails pretending to be you"

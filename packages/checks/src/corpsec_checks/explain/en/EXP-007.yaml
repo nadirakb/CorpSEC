@@ -1,0 +1,12 @@
+check_id: EXP-007
+title: "Your server's live status page is public"
+pass_title: "Your server's status page is private"
+summary: "The page {{item}} shows who is visiting your site right now and which pages they open."
+why_it_matters:
+  - "It can leak private page addresses and visitor details."
+fix:
+  default:
+    - "Ask your web host or IT person to limit server-status to the server itself."
+effort_minutes: 10
+who_can_fix: "Your web host or IT person."
+technical: "Apache mod_status exposed at {{item}}. Restrict with Require local."

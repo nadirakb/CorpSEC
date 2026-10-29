@@ -1,0 +1,16 @@
+check_id: HDR-004
+title: "Your site may share full page addresses with other sites"
+pass_title: "Your site keeps page addresses private"
+summary: "When visitors click a link to another site, your full page address can be passed along. It may include private details."
+why_it_matters:
+  - "Addresses can contain things like order numbers or search words."
+  - "Other sites and trackers can collect them."
+fix:
+  default:
+    - "Ask your web host or developer to add Referrer-Policy with the value strict-origin-when-cross-origin."
+  cloudflare:
+    - "In Cloudflare, go to Rules, then Transform Rules, then Modify Response Header."
+    - "Add a header named Referrer-Policy with the value strict-origin-when-cross-origin."
+effort_minutes: 10
+who_can_fix: "Your web host or developer."
+technical: "Referrer-Policy missing or set to unsafe-url."

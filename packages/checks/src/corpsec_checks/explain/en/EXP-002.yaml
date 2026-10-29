@@ -1,0 +1,16 @@
+check_id: EXP-002
+title: "A file with your passwords can be downloaded"
+pass_title: "Your password files are not downloadable"
+summary: "The settings file {{item|.env}} on your site can be downloaded by anyone. It usually holds passwords and secret keys."
+analogy: "It is like pinning your passwords to the shop window."
+why_it_matters:
+  - "Anyone can use these passwords to get into your database, email or payment accounts."
+  - "Bots scan for this file all day long."
+fix:
+  default:
+    - "Ask your developer or host to block or remove the file today."
+    - "Change every password and key that was in the file."
+    - "Press Check again."
+effort_minutes: 60
+who_can_fix: "Your developer or web host."
+technical: "{{item}} is publicly readable (values masked in evidence). Move it outside the web root and rotate all credentials."

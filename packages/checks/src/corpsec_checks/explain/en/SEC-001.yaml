@@ -1,0 +1,13 @@
+check_id: SEC-001
+title: "No contact for reporting security problems"
+pass_title: "You publish a contact for security reports"
+summary: "Your site has no security.txt file. Helpful people who find a problem don't know how to tell you."
+why_it_matters:
+  - "Friendly researchers may give up instead of warning you."
+fix:
+  default:
+    - "Create a text file at /.well-known/security.txt on your site."
+    - "Add a line with Contact: and an email you check, and a line with Expires: and a date next year."
+effort_minutes: 10
+who_can_fix: "Your web designer or web host."
+technical: "No /.well-known/security.txt with a Contact field (RFC 9116)."

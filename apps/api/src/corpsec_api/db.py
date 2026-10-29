@@ -69,6 +69,10 @@ class Scan(TimestampMixin, Base):
     score: Mapped[int | None] = mapped_column(Integer)
     grade: Mapped[str | None] = mapped_column(String(2))
     stage_grades: Mapped[dict[str, Any] | None] = mapped_column()
+    grade_caps: Mapped[list[Any] | None] = mapped_column()
+    fix_first: Mapped[list[Any] | None] = mapped_column()
+    """Finding ids to fix first (max 3), from the grader."""
+    grade_model_version: Mapped[str | None] = mapped_column(String(16))
     check_runs: Mapped[list[Any] | None] = mapped_column()
     error: Mapped[str | None] = mapped_column(Text)
     requested_by_ip: Mapped[str | None] = mapped_column(String(45))

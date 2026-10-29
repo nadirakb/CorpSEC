@@ -1,0 +1,12 @@
+check_id: EXP-005
+title: "A page shows your full server setup"
+pass_title: "Your server setup page is not public"
+summary: "The page {{item}} shows every detail of how your server is set up."
+why_it_matters:
+  - "It tells attackers your exact software versions and folder paths."
+fix:
+  default:
+    - "Delete {{item|the file}} from your site. It is only meant for testing."
+effort_minutes: 5
+who_can_fix: "Your developer or web host."
+technical: "phpinfo() output at {{item}}."

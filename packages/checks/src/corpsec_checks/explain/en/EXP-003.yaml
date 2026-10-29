@@ -1,0 +1,14 @@
+check_id: EXP-003
+title: "A backup of your WordPress settings can be downloaded"
+pass_title: "No WordPress settings backups are downloadable"
+summary: "A copy of your WordPress settings file ({{item}}) can be downloaded. It contains your database password."
+why_it_matters:
+  - "With this password an attacker can read or change everything on your site."
+fix:
+  default:
+    - "Delete {{item|the backup file}} from your site today."
+    - "Change your database password in your host's control panel."
+    - "Update the new password in wp-config.php, then press Check again."
+effort_minutes: 30
+who_can_fix: "Your web host or developer."
+technical: "{{item}} served as plain text and contains DB_PASSWORD. Remove it and rotate DB credentials."

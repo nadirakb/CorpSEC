@@ -1,0 +1,13 @@
+[project]
+name = "corpsec-grader"
+version = "0.1.0"
+description = "CorpSEC grading model: A-F grade, caps, stage grades and fix-first priority"
+requires-python = ">=3.12"
+dependencies = ["corpsec-scanner"]
+
+[tool.uv.sources]
+corpsec-scanner = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

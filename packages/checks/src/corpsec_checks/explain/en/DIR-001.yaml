@@ -1,0 +1,18 @@
+check_id: DIR-001
+title: "Anyone can see a list of files in a folder"
+pass_title: "Folder file lists are hidden"
+summary: "A folder on your site shows a list of all the files in it. Anyone can browse and download them."
+analogy: "It is like leaving a filing cabinet open in your shop window."
+why_it_matters:
+  - "Private files, backups or old versions can be found and downloaded."
+fix:
+  default:
+    - "Open the technical details to see which folder is open."
+    - "Ask your web host or IT person to turn off directory listing."
+    - "Move any private files out of the website."
+  wordpress:
+    - "Ask your host to turn off directory listing for the whole site."
+    - "Most WordPress security plugins can also do this for you."
+effort_minutes: 15
+who_can_fix: "Your web host or IT person."
+technical: "Directory index enabled ({{item}}). Apache: Options -Indexes; nginx: autoindex off."

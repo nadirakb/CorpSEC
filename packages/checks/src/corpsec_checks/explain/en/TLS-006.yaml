@@ -1,0 +1,13 @@
+check_id: TLS-006
+title: "Old traffic could be unlocked if your key leaks"
+pass_title: "Old traffic stays safe even if your key leaks"
+summary: "Your server uses a setup where one stolen key could unlock all past visits that someone recorded."
+why_it_matters:
+  - "If your server key is ever stolen, recorded traffic from the past can be read."
+fix:
+  default:
+    - "Ask your web host or IT person to turn on forward secrecy (ECDHE key exchange)."
+    - "Using TLS 1.3 fixes this on its own."
+effort_minutes: 30
+who_can_fix: "Your web host or IT person."
+technical: "No ECDHE/DHE key exchange accepted over TLS 1.2 and TLS 1.3 not negotiated."
