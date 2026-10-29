@@ -1,0 +1,60 @@
+[project]
+name = "corpsec"
+version = "0.1.0"
+description = "CorpSEC monorepo root"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/scanner", "packages/checks", "apps/api"]
+
+[tool.uv.sources]
+corpsec-scanner = { workspace = true }
+corpsec-checks = { workspace = true }
+corpsec-api = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "corpsec-scanner",
+    "corpsec-checks",
+    "corpsec-api",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "jsonschema>=4.23",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "S", "SIM", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["corpsec_scanner", "corpsec_checks", "corpsec_api"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S104", "S105", "S106", "RUF001"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["packages/scanner/tests", "packages/checks/tests", "apps/api/tests"]
+addopts = "--import-mode=importlib"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+packages = ["corpsec_scanner", "corpsec_checks", "corpsec_api"]
+
+[[tool.mypy.overrides]]
+module = ["arq.*", "tldextract.*"]
+ignore_missing_imports = true
