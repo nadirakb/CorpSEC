@@ -16,6 +16,7 @@ from corpsec_checks.software.sw_007 import WordPressUserEnumeration
 from corpsec_checks.software.sw_008 import WordPressXmlRpc
 from corpsec_scanner import Confidence, Severity
 from corpsec_scanner.intel import (
+    Attribution,
     IntelSnapshot,
     JsLibrary,
     Product,
@@ -57,10 +58,12 @@ INTEL = IntelSnapshot(
         ],
         "wordpress-plugin:contact-form-7": [
             Vulnerability(
-                ids=["CVE-2020-35489"],
+                ids=["CVE-2020-35489", "WF-a1"],
                 cvss=10.0,
                 severity="critical",
                 ranges=[VersionRange(fixed="5.3.2")],
+                url="https://www.wordfence.com/threat-intel/vulnerabilities/id/a1",
+                copyright=["defiant", "mitre"],
             ),
         ],
     },
@@ -79,6 +82,18 @@ INTEL = IntelSnapshot(
         )
     ],
     kev={"CVE-2022-21661"},
+    attributions={
+        "defiant": Attribution(
+            notice="Copyright 2012-2026 Defiant Inc.",
+            license="…",
+            license_url="https://www.wordfence.com/wti-community-edition-terms-and-conditions/",
+        ),
+        "mitre": Attribution(
+            notice="Copyright 1999-2026 The MITRE Corporation",
+            license="…",
+            license_url="https://www.cve.org/Legal/TermsOfUse",
+        ),
+    },
 )
 
 SW = [
@@ -114,6 +129,15 @@ async def test_wordpress_stack(scan: Scan) -> None:
     plugin = by_check[("SW-004", "wordpress-plugin:contact-form-7")]
     assert (plugin.severity, plugin.confidence) == (Severity.CRITICAL, Confidence.LIKELY)
     assert plugin.evidence.observed["version"] == "5.3.1"
+    # Wordfence licence: record link + Defiant/MITRE notices travel with the finding
+    [vuln] = plugin.evidence.observed["vulnerabilities"]
+    assert vuln["url"].startswith("https://www.wordfence.com/threat-intel/")
+    assert vuln["copyright"] == [
+        "Copyright 2012-2026 Defiant Inc.",
+        "Copyright 1999-2026 The MITRE Corporation",
+    ]
+    assert set(plugin.evidence.observed["attributions"]) == {"defiant", "mitre"}
+    assert plugin.references[0] == vuln["url"]
     js = by_check[("SW-005", "jquery")]
     assert (js.severity, js.evidence.observed["version"]) == (Severity.MEDIUM, "1.12.4")
     assert by_check[("SW-006", "php")].severity == Severity.HIGH

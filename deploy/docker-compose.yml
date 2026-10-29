@@ -45,6 +45,9 @@ services:
     <<: *app
     # Fills the intel volume once at startup. In production run it nightly (M4 scheduler).
     command: ["corpsec-intel-sync", "--out", "/data/intel.json", "--previous", "/data/intel.json"]
+    environment:
+      # Optional: WordPress vulnerabilities from Wordfence. Put it in deploy/.env (gitignored).
+      CORPSEC_WORDFENCE_API_KEY: ${CORPSEC_WORDFENCE_API_KEY:-}
     user: root
     restart: "no"
 

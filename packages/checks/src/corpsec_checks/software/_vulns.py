@@ -26,6 +26,10 @@ def vuln_observation(
     source: str,
     severity: Severity | None = None,
 ) -> Observation:
+    shown = vulns[:20]
+    # Licences of some sources (Wordfence/Defiant, MITRE) require their notice and licence
+    # to travel with every copy of the data, so the evidence carries them.
+    holders = sorted({h for v in shown for h in v.copyright if h in intel.attributions})
     return observe(
         host,
         severity or vuln_severity(intel, vulns),
@@ -42,16 +46,22 @@ def vuln_observation(
                     "cvss": v.cvss,
                     "known_exploited": intel.in_kev(v),
                     "summary": v.summary[:200],
+                    "url": v.url,
+                    "copyright": [
+                        intel.attributions[h].notice for h in v.copyright if h in intel.attributions
+                    ],
                 }
-                for v in vulns[:20]
+                for v in shown
             ],
             "total": len(vulns),
+            "attributions": {h: intel.attributions[h].model_dump() for h in holders},
         },
         expected="No known vulnerabilities in the installed version",
         dedupe_key=product,
-        references=[
+        references=[v.url for v in shown[:5] if v.url]
+        + [
             f"https://nvd.nist.gov/vuln/detail/{i}"
-            for v in vulns[:5]
+            for v in shown[:5]
             for i in v.ids
             if i.startswith("CVE-")
         ][:5],

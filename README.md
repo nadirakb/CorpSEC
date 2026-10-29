@@ -30,7 +30,7 @@ Requires [uv](https://docs.astral.sh/uv/) and Docker.
 
 ```bash
 uv sync                                    # install workspace + dev tools
-uv run corpsec-intel-sync --out intel.json # fetch vulnerability/product data (optional)
+uv run corpsec-intel-sync --out intel.json # fetch vulnerability/product data (optional; see below)
 uv run corpsec-scan example.com --intel intel.json   # scan from the command line, prints JSON
 docker compose -f deploy/docker-compose.yml up --build   # Postgres, Redis, API (:8000), worker
 ```
@@ -46,6 +46,16 @@ Tests, lint and types (API tests need a Postgres URL; they are skipped without o
 CORPSEC_TEST_DATABASE_URL=postgresql+asyncpg://corpsec:corpsec@localhost:5432/corpsec uv run pytest
 uv run ruff check . && uv run ruff format --check . && uv run mypy
 ```
+
+### WordPress vulnerability data (Wordfence)
+
+WordPress core and plugin vulnerabilities come from the [Wordfence Intelligence](https://www.wordfence.com/threat-intel/) feed, which is free for personal and commercial use but needs an API key:
+
+1. Create a free account at wordfence.com and generate a key under **Account → Integrations**.
+2. Put it in your environment or in `deploy/.env` (gitignored): `CORPSEC_WORDFENCE_API_KEY=…`
+3. Re-run `corpsec-intel-sync` (or restart the compose stack).
+
+Without a key the sync skips this source and WordPress vulnerability checks stay silent. The licence requires showing a link to each Wordfence record and the Defiant (and, for CVEs, MITRE) copyright notices wherever the data is displayed; findings carry them in their evidence.
 
 ### Layout
 

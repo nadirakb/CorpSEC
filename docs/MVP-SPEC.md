@@ -218,7 +218,9 @@ Nmap-style fingerprinting adapted to the web: identify technologies and versions
 
 Data sources: NVD CVE API 2.0, CISA KEV catalog, OSV.dev, WordPress.org API (core/plugin latest versions), Wordfence Intelligence / WPScan vulnerability DB (license to confirm, §14), retire.js repository (for JS libs). Synced nightly into a local snapshot; scans never call third-party APIs inline.
 
-*Implemented (M1):* the snapshot is a JSON file written atomically by `corpsec-intel-sync` (packages/intel) rather than database tables, so scan workers need no database credentials (§15). Sources wired up: WordPress.org (latest core), endoflife.date (PHP, nginx, Apache, WordPress, Drupal, Joomla release lines), retire.js, CISA KEV, IANA RDAP bootstrap. **WordPress core/plugin vulnerability data is not wired up yet** — it depends on §17 Q1; SW-003/SW-004 therefore only report for products the snapshot has data for.
+*Implemented (M1):* the snapshot is a JSON file written atomically by `corpsec-intel-sync` (packages/intel) rather than database tables, so scan workers need no database credentials (§15). Sources wired up: WordPress.org (latest core), endoflife.date (PHP, nginx, Apache, WordPress, Drupal, Joomla release lines), retire.js, CISA KEV, IANA RDAP bootstrap, and **Wordfence Intelligence v3 production feed** for WordPress core and plugin vulnerabilities (decided in §17 Q1). Wordfence needs an API key from a free Wordfence.com account (`CORPSEC_WORDFENCE_API_KEY`); without it that source is skipped. Themes and "informational" records are not imported yet.
+
+**Attribution (licence requirement, applies to M3 UI and M5 reports):** Wordfence data is licensed by Defiant on condition that every copy includes a hyperlink to the vulnerability record and reproduces Defiant's copyright notice and licence; CVE data additionally requires MITRE's notice to be shown to end users. Each finding's evidence therefore carries `vulnerabilities[].url`, `vulnerabilities[].copyright` and an `attributions` map (notice, licence, licence URL). The results page and PDF must display them next to the finding.
 
 Version matching rule: only report `SW-003/004/005` when a **specific version** was observed. "WordPress detected, version unknown" never produces a vulnerability finding (false-positive control).
 
@@ -599,7 +601,8 @@ All responses JSON; errors use RFC 9457 problem details with a user-friendly `ti
 | testssl.sh | GPL-2.0 | Possible as an isolated subprocess tool; legal review. |
 | NVD, CISA KEV, OSV | Public / CC | Use. |
 | WordPress.org API | Public | Use for latest versions. |
-| Wordfence Intelligence / WPScan DB | Vendor terms (WPScan commercial API is paid) | Decide in §17. |
+| Wordfence Intelligence (v3 feed) | Free for personal and commercial use; [WTI Community Edition terms](https://www.wordfence.com/wti-community-edition-terms-and-conditions/) — link to each record + Defiant notice/licence; MITRE notice for CVEs | **Used** (needs API key). |
+| WPScan DB | Commercial API is paid | Not used. |
 | retire.js repo | Apache-2.0 | Use. |
 | Public Suffix List | MPL-2.0 | Use. |
 
@@ -636,7 +639,7 @@ Commercial tools (Burp Suite, Qualys, Acunetix/Invicti) are used **only as produ
 
 ## 17. Open questions
 
-1. WordPress plugin vulnerability data source: Wordfence Intelligence (free API with attribution) vs WPScan (paid) vs OSV-only?
+1. ~~WordPress plugin vulnerability data source~~ — **decided 2026-10-29: Wordfence Intelligence** (free, attribution required, see §6.4).
 2. Project license: proprietary SaaS, open-core, or AGPL (which would allow sslyze)?
 3. Pricing for v1 paid tier (agency multi-site, PDF white-label)?
 4. Hosting region (EU for GDPR simplicity?).

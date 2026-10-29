@@ -63,5 +63,5 @@ plugins = ["pydantic.mypy"]
 packages = ["corpsec_scanner", "corpsec_checks", "corpsec_intel", "corpsec_api"]
 
 [[tool.mypy.overrides]]
-module = ["arq.*", "tldextract.*"]
+module = ["arq.*", "tldextract.*", "ijson.*"]
 ignore_missing_imports = true

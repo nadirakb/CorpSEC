@@ -3,7 +3,11 @@ name = "corpsec-intel"
 version = "0.1.0"
 description = "Builds the CorpSEC vulnerability/product intelligence snapshot"
 requires-python = ">=3.12"
-dependencies = ["corpsec-scanner", "httpx>=0.28"]
+dependencies = [
+    "corpsec-scanner",
+    "httpx>=0.28",
+    "ijson>=3.3",
+]
 
 [project.scripts]
 corpsec-intel-sync = "corpsec_intel.sync:main"

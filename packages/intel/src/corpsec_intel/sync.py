@@ -7,10 +7,12 @@ Sources (all public, fetched with plain HTTPS from fixed URLs):
 * retire.js repository — JavaScript library detection patterns and vulnerabilities
 * CISA KEV — CVEs known to be exploited in the wild
 * IANA RDAP bootstrap — which registry answers RDAP queries for each TLD
-
-WordPress core/plugin vulnerability data is not included yet: the data source is an open
-decision (spec §17 Q1). The snapshot format already supports it (``vulns`` keyed by
-``wordpress`` / ``wordpress-plugin:<slug>``).
+* Wordfence Intelligence (v3 production feed) — WordPress core and plugin vulnerabilities.
+  Free for personal and commercial use but needs an API key from a Wordfence.com account
+  (``CORPSEC_WORDFENCE_API_KEY``); without one the source is skipped. Its licence requires
+  a link to each record plus the Defiant (and, for CVEs, MITRE) notices wherever the data
+  is shown, so records keep ``url`` and ``copyright`` and the notices go into
+  ``IntelSnapshot.attributions``.
 
 A source that fails keeps its previous data when ``--previous`` is given, so one outage
 doesn't wipe a section of the snapshot.
@@ -21,15 +23,19 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import os
 import sys
+import tempfile
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 import httpx
+import ijson
 
 from corpsec_scanner.intel import (
+    Attribution,
     IntelSnapshot,
     JsLibrary,
     Product,
@@ -50,6 +56,8 @@ RETIRE_URL = (
 )
 KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 RDAP_URL = "https://data.iana.org/rdap/dns.json"
+WORDFENCE_URL = "https://www.wordfence.com/api/intelligence/v3/vulnerabilities/production"
+WORDFENCE_KEY_ENV = "CORPSEC_WORDFENCE_API_KEY"
 
 # endoflife.date product id -> CorpSEC fingerprint product id
 EOL_PRODUCTS = {
@@ -130,8 +138,79 @@ def parse_rdap(data: dict[str, Any]) -> dict[str, str]:
     return out
 
 
+_WF_SEVERITY = {"critical": "critical", "high": "high", "medium": "medium", "low": "low"}
+_WF_PRODUCT = {"core": "wordpress", "plugin": "wordpress-plugin:"}
+
+
+def _wf_range(spec: dict[str, Any]) -> VersionRange:
+    low, high = spec.get("from_version", "*"), spec.get("to_version", "*")
+    rng = VersionRange()
+    if low != "*":
+        rng.introduced = str(low)
+        rng.introduced_exclusive = not spec.get("from_inclusive", True)
+    if high != "*":
+        if spec.get("to_inclusive", True):
+            rng.last_affected = str(high)
+        else:
+            rng.fixed = str(high)
+    return rng
+
+
+def parse_wordfence(
+    stream: IO[bytes],
+) -> tuple[dict[str, list[Vulnerability]], dict[str, Attribution]]:
+    """Stream-parse the v3 production feed (it is >150 MB, so never ``json.load`` it).
+
+    Keeps core and plugin records; themes are skipped because CorpSEC doesn't fingerprint
+    themes yet, and informational records (no real-world impact) are dropped.
+    """
+    vulns: dict[str, list[Vulnerability]] = {}
+    attributions: dict[str, Attribution] = {}
+    for _uuid, rec in ijson.kvitems(stream, "", use_float=True):
+        if rec.get("informational"):
+            continue
+        holders = []
+        for holder, c in (rec.get("copyrights") or {}).items():
+            if isinstance(c, dict) and {"notice", "license", "license_url"} <= c.keys():
+                holders.append(holder)
+                attributions.setdefault(
+                    holder,
+                    Attribution(
+                        notice=c["notice"], license=c["license"], license_url=c["license_url"]
+                    ),
+                )
+        cvss = rec.get("cvss") or {}
+        ids = [rec["cve"]] if rec.get("cve") else []
+        ids.append(f"WF-{rec['id']}")
+        refs = rec.get("references") or []
+        url = next((r for r in refs if "wordfence.com" in r), refs[0] if refs else None)
+        for sw in rec.get("software") or []:
+            prefix = _WF_PRODUCT.get(sw.get("type", ""))
+            if prefix is None:
+                continue
+            key = prefix if prefix == "wordpress" else prefix + str(sw.get("slug", ""))
+            ranges = [_wf_range(r) for r in (sw.get("affected_versions") or {}).values()]
+            if not ranges:
+                continue
+            vulns.setdefault(key, []).append(
+                Vulnerability(
+                    ids=ids,
+                    severity=_WF_SEVERITY.get(str(cvss.get("rating", "")).lower()),
+                    cvss=cvss.get("score"),
+                    summary=str(rec.get("title", ""))[:300],
+                    ranges=ranges,
+                    url=url,
+                    copyright=holders,
+                )
+            )
+    return vulns, attributions
+
+
 async def build_snapshot(
-    client: httpx.AsyncClient, previous: IntelSnapshot | None = None
+    client: httpx.AsyncClient,
+    previous: IntelSnapshot | None = None,
+    *,
+    wordfence_key: str | None = None,
 ) -> tuple[IntelSnapshot, list[str]]:
     """Return the new snapshot and the names of sources that failed."""
     prev = previous or IntelSnapshot()
@@ -143,6 +222,7 @@ async def build_snapshot(
         kev=set(prev.kev),
         rdap=dict(prev.rdap),
         sources=dict(prev.sources),
+        attributions=dict(prev.attributions),
     )
     failed: list[str] = []
 
@@ -176,6 +256,20 @@ async def build_snapshot(
     async def rdap() -> None:
         snap.rdap = parse_rdap(await _json(client, RDAP_URL))
 
+    async def wordfence() -> None:
+        headers = {"Authorization": f"Bearer {wordfence_key}"}
+        with tempfile.TemporaryFile() as f:
+            async with client.stream("GET", WORDFENCE_URL, headers=headers, timeout=600) as r:
+                r.raise_for_status()
+                async for chunk in r.aiter_bytes():
+                    f.write(chunk)
+            f.seek(0)
+            vulns, attributions = await asyncio.to_thread(parse_wordfence, f)
+        # replace all WordPress data at once, so removed records disappear too
+        snap.vulns = {k: v for k, v in snap.vulns.items() if not k.startswith("wordpress")}
+        snap.vulns.update(vulns)
+        snap.attributions.update(attributions)
+
     # endoflife first so the WordPress.org "latest" overrides endoflife's value
     await asyncio.gather(
         *(
@@ -189,6 +283,17 @@ async def build_snapshot(
         source("cisa-kev", KEV_URL, "CC0-1.0", kev),
         source("iana-rdap", RDAP_URL, None, rdap),
     )
+    if wordfence_key:
+        await source(
+            "wordfence",
+            WORDFENCE_URL,
+            "https://www.wordfence.com/wti-community-edition-terms-and-conditions/",
+            wordfence,
+        )
+    else:
+        log.info(
+            "wordfence skipped: set %s to include WordPress vulnerabilities", WORDFENCE_KEY_ENV
+        )
     return snap, failed
 
 
@@ -197,17 +302,21 @@ async def _run(out: Path, previous: Path | None) -> int:
     async with httpx.AsyncClient(
         timeout=60, headers={"User-Agent": USER_AGENT}, follow_redirects=True
     ) as client:
-        snap, failed = await build_snapshot(client, prev)
+        snap, failed = await build_snapshot(
+            client, prev, wordfence_key=os.environ.get(WORDFENCE_KEY_ENV) or None
+        )
     tmp = out.with_suffix(out.suffix + ".tmp")
     tmp.write_text(snap.model_dump_json())
     tmp.replace(out)  # atomic: scans never read a half-written file
     log.info(
-        "wrote %s: %d products, %d JS libraries, %d KEV CVEs, %d RDAP TLDs; failed: %s",
+        "wrote %s: %d products, %d JS libraries, %d KEV CVEs, %d RDAP TLDs, "
+        "%d WordPress products with vulnerabilities; failed: %s",
         out,
         len(snap.products),
         len(snap.js_libraries),
         len(snap.kev),
         len(snap.rdap),
+        sum(k.startswith("wordpress") for k in snap.vulns),
         ", ".join(failed) or "none",
     )
     return 1 if failed else 0

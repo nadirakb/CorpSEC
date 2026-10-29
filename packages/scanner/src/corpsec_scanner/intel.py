@@ -18,14 +18,18 @@ from pydantic import BaseModel, Field
 class VersionRange(BaseModel):
     introduced: str | None = None
     """First affected version (inclusive). ``None`` = all earlier versions."""
+    introduced_exclusive: bool = False
+    """Treat ``introduced`` as an exclusive lower bound (Wordfence ``from_inclusive: false``)."""
     fixed: str | None = None
     """First fixed version (exclusive upper bound)."""
     last_affected: str | None = None
     """Inclusive upper bound, when no fixed version exists."""
 
     def contains(self, version: str) -> bool:
-        if self.introduced and compare_versions(version, self.introduced) < 0:
-            return False
+        if self.introduced:
+            cmp = compare_versions(version, self.introduced)
+            if cmp < 0 or (cmp == 0 and self.introduced_exclusive):
+                return False
         if self.fixed and compare_versions(version, self.fixed) >= 0:
             return False
         return not (self.last_affected and compare_versions(version, self.last_affected) > 0)
@@ -37,6 +41,10 @@ class Vulnerability(BaseModel):
     cvss: float | None = None
     summary: str = ""
     ranges: list[VersionRange]
+    url: str | None = None
+    """Link to the source record. Some licences require showing it (Wordfence)."""
+    copyright: list[str] = Field(default_factory=list)
+    """Keys into ``IntelSnapshot.attributions`` whose notices must accompany this record."""
 
     def affects(self, version: str) -> bool:
         return any(r.contains(version) for r in self.ranges)
@@ -78,6 +86,14 @@ class JsLibrary(BaseModel):
     vulns: list[Vulnerability] = Field(default_factory=list)
 
 
+class Attribution(BaseModel):
+    """A copyright notice and licence that must be reproduced wherever the data is shown."""
+
+    notice: str
+    license: str
+    license_url: str
+
+
 class SourceInfo(BaseModel):
     url: str
     fetched_at: datetime
@@ -96,6 +112,8 @@ class IntelSnapshot(BaseModel):
     """CVE ids in the CISA Known Exploited Vulnerabilities catalog."""
     rdap: dict[str, str] = Field(default_factory=dict)
     """TLD -> RDAP base URL (IANA bootstrap)."""
+    attributions: dict[str, Attribution] = Field(default_factory=dict)
+    """Copyright holders referenced by ``Vulnerability.copyright`` (e.g. defiant, mitre)."""
 
     @property
     def empty(self) -> bool:
