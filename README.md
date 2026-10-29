@@ -6,7 +6,7 @@ CorpSEC checks a website or domain and returns an A–F grade, the three things 
 
 It is inspired by professional tools such as OWASP ZAP, Nmap, OpenVAS, Burp Suite, Qualys and Acunetix, but is built for small businesses, freelancers, schools and NGOs rather than security specialists.
 
-> **Status:** pre-alpha — milestone M3 (web app). Run a scan in the browser, watch it live, read an A–F report in plain language, re-check fixes. No accounts yet (M4).
+> **Status:** pre-alpha — milestone M4 (accounts & monitoring). Sign in with an email link, add and verify your sites, get weekly checks and email alerts when something gets worse.
 
 ## What the MVP checks
 
@@ -32,7 +32,7 @@ Requires [uv](https://docs.astral.sh/uv/) and Docker.
 uv sync                                    # install workspace + dev tools
 uv run corpsec-intel-sync --out intel.json # fetch vulnerability/product data (optional; see below)
 uv run corpsec-scan example.com --intel intel.json   # scan from the command line, prints JSON
-docker compose -f deploy/docker-compose.yml up --build   # Postgres, Redis, API (:8000), worker, web (:3000)
+docker compose -f deploy/docker-compose.yml up --build   # Postgres, Redis, API (:8000), worker, web (:3000), Mailpit (:8025)
 ```
 
 ```bash
@@ -46,6 +46,10 @@ Tests, lint and types (API tests need a Postgres URL; they are skipped without o
 CORPSEC_TEST_DATABASE_URL=postgresql+asyncpg://corpsec:corpsec@localhost:5432/corpsec uv run pytest
 uv run ruff check . && uv run ruff format --check . && uv run mypy
 ```
+
+### Email in development
+
+The compose stack sends all email (sign-in links, alerts) to [Mailpit](https://mailpit.axllent.org/). Open http://localhost:8025 to read it. For real delivery set `CORPSEC_SMTP_HOST`, `CORPSEC_SMTP_PORT`, `CORPSEC_SMTP_USERNAME`, `CORPSEC_SMTP_PASSWORD` and `CORPSEC_MAIL_FROM`; set `CORPSEC_WEB_URL` to the public address of the web app so links point to it.
 
 ### WordPress vulnerability data (Wordfence)
 

@@ -200,3 +200,20 @@ async def test_wordpress_checks_skip_other_platforms(scan: Scan) -> None:
     result = await scan(checks, site)
     assert severities(result, "SW-007") == []
     assert not any("/wp-json" in r.url.path for r in site.requests)
+
+
+def test_vulnerabilities_listed_worst_first() -> None:
+    from corpsec_checks.software._vulns import vuln_observation
+
+    low = Vulnerability(ids=["CVE-1"], cvss=4.0, ranges=[VersionRange()])
+    high = Vulnerability(ids=["CVE-2"], cvss=8.1, ranges=[VersionRange()])
+    kev = Vulnerability(ids=["CVE-3"], cvss=5.0, ranges=[VersionRange()])
+    intel = IntelSnapshot(kev={"CVE-3"})
+    obs = vuln_observation(
+        "a.az", intel, "x", "1.0", [low, high, kev], confidence=Confidence.LIKELY, source="test"
+    )
+    assert [v["ids"][0] for v in obs.evidence.observed["vulnerabilities"]] == [
+        "CVE-3",
+        "CVE-2",
+        "CVE-1",
+    ]

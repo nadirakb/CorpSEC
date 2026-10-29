@@ -106,6 +106,25 @@ export function Results({ scan, onChanged }: { scan: Scan; onChanged: () => Prom
         )}
       </section>
 
+      {scan.site_id ? (
+        <Link href={`/sites/${scan.site_id}`} className="inline-block font-semibold text-accent underline">
+          ← {t.cta.backToSite}
+        </Link>
+      ) : (
+        <aside className="rounded-2xl border-2 border-accent/40 bg-raised p-6 sm:flex sm:items-center sm:justify-between sm:gap-6">
+          <div>
+            <h2 className="font-display text-2xl font-semibold">{t.cta.title}</h2>
+            <p className="mt-1 text-ink-soft">{t.cta.text}</p>
+          </div>
+          <Link
+            href={`/login?next=${encodeURIComponent(`/dashboard?add=${scan.host}`)}`}
+            className="mt-4 inline-block shrink-0 rounded-xl bg-accent px-6 py-3 font-semibold text-accent-ink sm:mt-0"
+          >
+            {t.cta.button}
+          </Link>
+        </aside>
+      )}
+
       <section aria-labelledby="all-heading">
         <h2 id="all-heading" className="font-display text-3xl font-semibold">
           {t.results.allResults}

@@ -89,6 +89,7 @@ Landing page
 ### 4.2 Sign up & add site
 
 1. Sign up with email magic link (no password to manage) or Google/Microsoft OAuth.
+   *Implemented (M4):* magic link (single-use, 15 min, hashed tokens, silent rate limit, open-redirect-safe `next`); sessions in an HttpOnly/Secure/SameSite=Lax cookie with server-side storage; cross-site writes refused by an Origin check. **Google/Microsoft OAuth is not built yet**: it needs client credentials registered with each provider.
 2. Onboarding asks **one question**: "Where is your website built?" (WordPress / Shopify / Wix / Squarespace / Webflow / Custom / I don't know). Auto-detected value is preselected. Used to tailor fix guides.
 3. Optional: "Where is your email hosted?" (Google Workspace / Microsoft 365 / Zoho / Other / I don't know) — also auto-detected from MX records.
 

@@ -36,6 +36,33 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(320), unique=True)
     locale: Mapped[str] = mapped_column(String(16), default="en")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class LoginToken(TimestampMixin, Base):
+    """Single-use magic-link token. Only a SHA-256 of the token is stored."""
+
+    __tablename__ = "login_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(320), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    requested_ip: Mapped[str | None] = mapped_column(String(45))
+
+
+class UserSession(TimestampMixin, Base):
+    """Browser session. The cookie holds a random token; only its SHA-256 is stored."""
+
+    __tablename__ = "user_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    user_agent: Mapped[str | None] = mapped_column(String(256))
 
 
 class Site(TimestampMixin, Base):
@@ -51,6 +78,28 @@ class Site(TimestampMixin, Base):
     verification_token: Mapped[str | None] = mapped_column(String(64))
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     monitoring_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    """Last successful verification (initial or re-check before a scheduled scan)."""
+    verify_failures: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    monitoring_paused_reason: Mapped[str | None] = mapped_column(String(32))
+    next_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    next_light_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Alert(TimestampMixin, Base):
+    """Something the owner was told about by email (spec §4.5)."""
+
+    __tablename__ = "alerts"
+    __table_args__ = (Index("ix_alerts_site_kind_key", "site_id", "kind", "key"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    site_id: Mapped[str] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(32))
+    """grade_drop, new_problem, cert_expiring, domain_expiring, site_down, verification_lost"""
+    key: Mapped[str] = mapped_column(String(256), default="")
+    """Identifies the subject (e.g. a finding identity) so repeats can be suppressed."""
+    payload: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Scan(TimestampMixin, Base):

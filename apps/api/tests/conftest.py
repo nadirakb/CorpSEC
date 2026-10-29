@@ -11,10 +11,14 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from corpsec_api.db import make_engine
+from corpsec_api.mailer import MemoryMailer
 from corpsec_api.main import create_app
+from corpsec_api.monitoring import execute_verify
 from corpsec_api.progress import MemoryProgressBus
 from corpsec_api.scans import execute_recheck
+from corpsec_api.settings import Settings
 from corpsec_scanner import ScanOptions, load_checks
+from corpsec_scanner.dns import DnsAnswer, DnsClient
 
 DATABASE_URL = os.environ.get("CORPSEC_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="CORPSEC_TEST_DATABASE_URL not set")
@@ -40,19 +44,31 @@ async def sessions(migrated_db: str) -> AsyncIterator[async_sessionmaker[AsyncSe
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "TRUNCATE audit_log, finding_checks, findings, scans, sites, users "
-                "RESTART IDENTITY CASCADE"
+                "TRUNCATE alerts, audit_log, finding_checks, findings, scans, sites, "
+                "login_tokens, user_sessions, users RESTART IDENTITY CASCADE"
             )
         )
     await engine.dispose()
 
 
 Handler = Callable[[httpx.Request], httpx.Response]
+WEB_URL = "https://corpsec.test"
 
 
-def mock_options(handler: Handler) -> ScanOptions:
+class FakeDns(DnsClient):
+    def __init__(self, records: dict[tuple[str, str], list[str]] | None = None) -> None:
+        super().__init__(nameservers=["192.0.2.1"])
+        self.records = records or {}
+
+    async def _lookup(self, name: str, rdtype: str) -> DnsAnswer:
+        return DnsAnswer(records=tuple(self.records.get((name, rdtype), [])))
+
+
+def mock_options(handler: Handler, dns: DnsClient | None = None) -> ScanOptions:
     return ScanOptions(
-        preflight=False, transport_factory=lambda verify: httpx.MockTransport(handler)
+        preflight=False,
+        transport_factory=lambda verify: httpx.MockTransport(handler),
+        dns=dns or FakeDns(),
     )
 
 
@@ -68,9 +84,15 @@ class FakeQueue:
         self.enqueued: list[str] = []
         self.sessions = sessions
         self.handler: Handler = lambda req: httpx.Response(404)
+        self.dns: DnsClient = FakeDns()
 
     async def enqueue_scan(self, scan_id: str) -> None:
         self.enqueued.append(scan_id)
+
+    async def verify_site(self, site_id: str, method: str) -> dict[str, Any] | None:
+        return await execute_verify(
+            self.sessions, site_id, method, mock_options(self.handler, self.dns)
+        )
 
     async def recheck(self, finding_id: str) -> dict[str, Any] | None:
         return await execute_recheck(
@@ -89,10 +111,49 @@ def progress() -> MemoryProgressBus:
 
 
 @pytest.fixture
-async def client(
-    sessions: async_sessionmaker[AsyncSession], queue: FakeQueue, progress: MemoryProgressBus
-) -> AsyncIterator[httpx.AsyncClient]:
-    app = create_app(sessions=sessions, queue=queue, progress=progress)
-    transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+def mailer() -> MemoryMailer:
+    return MemoryMailer()
+
+
+@pytest.fixture
+def settings() -> Settings:
+    return Settings(web_url=WEB_URL, smtp_host=None)
+
+
+@pytest.fixture
+def app_factory(
+    sessions: async_sessionmaker[AsyncSession],
+    queue: FakeQueue,
+    progress: MemoryProgressBus,
+    mailer: MemoryMailer,
+    settings: Settings,
+) -> Callable[[], httpx.AsyncClient]:
+    """New clients share the app but not cookies, so tests can act as different people."""
+    app = create_app(
+        sessions=sessions, queue=queue, progress=progress, mailer=mailer, settings=settings
+    )
+
+    def make() -> httpx.AsyncClient:
+        # https so the Secure session cookie is sent back
+        return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://test")
+
+    return make
+
+
+@pytest.fixture
+async def client(app_factory: Callable[[], httpx.AsyncClient]) -> AsyncIterator[httpx.AsyncClient]:
+    async with app_factory() as c:
         yield c
+
+
+async def sign_in(client: httpx.AsyncClient, mailer: MemoryMailer, email: str) -> str:
+    """Full magic-link flow. Returns the user id."""
+    r = await client.post("/v1/auth/magic-link", json={"email": email})
+    assert r.status_code == 202
+    link = mailer.sent[-1].text.split("\n")
+    url = next(line for line in link if "/auth/verify?token=" in line)
+    token = url.split("token=")[1].split("&")[0]
+    r = await client.post("/v1/auth/verify", json={"token": token})
+    assert r.status_code == 200, r.text
+    user_id: str = r.json()["id"]
+    return user_id

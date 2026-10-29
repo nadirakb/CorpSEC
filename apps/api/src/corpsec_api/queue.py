@@ -8,6 +8,7 @@ from arq.connections import ArqRedis
 
 SCAN_JOB = "run_scan_job"
 RECHECK_JOB = "recheck_finding_job"
+VERIFY_JOB = "verify_site_job"
 RECHECK_TIMEOUT = 60.0
 
 
@@ -16,6 +17,9 @@ class ScanQueue(Protocol):
 
     async def recheck(self, finding_id: str) -> dict[str, Any] | None:
         """Run a re-check in the worker and wait for its result."""
+
+    async def verify_site(self, site_id: str, method: str) -> dict[str, Any] | None:
+        """Run an ownership check in the worker and wait for its result."""
 
 
 class ArqScanQueue:
@@ -29,6 +33,13 @@ class ArqScanQueue:
     async def recheck(self, finding_id: str) -> dict[str, Any] | None:
         job = await self._redis.enqueue_job(RECHECK_JOB, finding_id)
         if job is None:  # an identical job is already queued
+            return None
+        result: dict[str, Any] | None = await job.result(timeout=RECHECK_TIMEOUT)
+        return result
+
+    async def verify_site(self, site_id: str, method: str) -> dict[str, Any] | None:
+        job = await self._redis.enqueue_job(VERIFY_JOB, site_id, method)
+        if job is None:
             return None
         result: dict[str, Any] | None = await job.result(timeout=RECHECK_TIMEOUT)
         return result
