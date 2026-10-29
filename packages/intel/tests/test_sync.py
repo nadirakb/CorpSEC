@@ -1,6 +1,7 @@
 import json
 
 import httpx
+import pytest
 
 from corpsec_intel.sync import (
     EOL_URL,
@@ -10,6 +11,7 @@ from corpsec_intel.sync import (
     WORDFENCE_URL,
     WORDPRESS_URL,
     build_snapshot,
+    clean_version,
     parse_retire,
     parse_wordfence,
 )
@@ -208,3 +210,74 @@ async def test_wordfence_needs_key_and_replaces_wordpress_data() -> None:
     assert "wordpress-plugin:old" not in snap.vulns  # replaced wholesale
     assert "drupal" in snap.vulns  # other products untouched
     assert set(snap.attributions) == {"defiant", "mitre"}
+
+
+@pytest.mark.parametrize(
+    ("raw", "clean"),
+    [
+        ("5.3.1", "5.3.1"),
+        ("44.0 (17-08-2023)", "44.0"),
+        ("47.0(20-11-2023)", "47.0"),
+        ("v2.1", "2.1"),
+        ("4.0.0-beta.1", "4.0.0-beta.1"),
+        ("1.0f", "1.0f"),
+        (".51.1", None),
+        ("latest", None),
+    ],
+)
+def test_clean_version(raw: str, clean: str | None) -> None:
+    assert clean_version(raw) == clean
+
+
+def test_unparseable_bounds_drop_the_range() -> None:
+    import io
+
+    bad = wf_record("e5")
+    bad["software"][0]["affected_versions"] = {  # type: ignore[index]
+        "x": {
+            "from_version": "*",
+            "from_inclusive": True,
+            "to_version": ".51.1",
+            "to_inclusive": True,
+        },
+        "y": {
+            "from_version": "1.0",
+            "from_inclusive": True,
+            "to_version": "44.0 (17-08-2023)",
+            "to_inclusive": True,
+        },
+    }
+    vulns, _ = parse_wordfence(io.BytesIO(json.dumps({"e5": bad}).encode()))
+    [v] = vulns["wordpress-plugin:contact-form-7"]
+    assert len(v.ranges) == 1 and v.ranges[0].last_affected == "44.0"
+    assert v.affects("43.9") and not v.affects("44.0.1")
+
+
+async def test_wordfence_not_refetched_within_interval() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from corpsec_scanner.intel import SourceInfo, Vulnerability
+
+    calls: list[str] = []
+
+    def wf(req: httpx.Request) -> httpx.Response:
+        if str(req.url) == WORDFENCE_URL:
+            calls.append("wf")
+            return httpx.Response(429)
+        return handler(req)
+
+    kept = {"wordpress-plugin:x": [Vulnerability(ids=["WF-1"], ranges=[])]}
+    recent = IntelSnapshot(
+        vulns=kept,
+        sources={"wordfence": SourceInfo(url=WORDFENCE_URL, fetched_at=datetime.now(UTC))},
+    )
+    async with httpx.AsyncClient(transport=httpx.MockTransport(wf)) as client:
+        snap, failed = await build_snapshot(client, recent, wordfence_key="k")
+        assert calls == [] and "wordfence" not in failed
+        assert snap.vulns["wordpress-plugin:x"] == kept["wordpress-plugin:x"]
+
+        stale = recent.model_copy(deep=True)
+        stale.sources["wordfence"].fetched_at -= timedelta(hours=13)
+        snap, failed = await build_snapshot(client, stale, wordfence_key="k")
+    assert calls == ["wf"] and "wordfence" in failed  # 429 -> keep previous data
+    assert "wordpress-plugin:x" in snap.vulns

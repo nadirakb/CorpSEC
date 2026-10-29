@@ -24,10 +24,11 @@ import argparse
 import asyncio
 import logging
 import os
+import re
 import sys
 import tempfile
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import IO, Any
 
@@ -58,6 +59,9 @@ KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulner
 RDAP_URL = "https://data.iana.org/rdap/dns.json"
 WORDFENCE_URL = "https://www.wordfence.com/api/intelligence/v3/vulnerabilities/production"
 WORDFENCE_KEY_ENV = "CORPSEC_WORDFENCE_API_KEY"
+WORDFENCE_MIN_INTERVAL = timedelta(hours=12)
+"""The feed is rate-limited (HTTP 429 after a couple of downloads in minutes); a fresher
+copy in the previous snapshot is reused instead of downloading again."""
 
 # endoflife.date product id -> CorpSEC fingerprint product id
 EOL_PRODUCTS = {
@@ -142,17 +146,35 @@ _WF_SEVERITY = {"critical": "critical", "high": "high", "medium": "medium", "low
 _WF_PRODUCT = {"core": "wordpress", "plugin": "wordpress-plugin:"}
 
 
-def _wf_range(spec: dict[str, Any]) -> VersionRange:
+_VERSION_RE = re.compile(r"^[vV]?(\d+(?:\.\d+)*(?:[-.]?[A-Za-z0-9]+)*)")
+
+
+def clean_version(raw: object) -> str | None:
+    """``"44.0 (17-08-2023)"`` -> ``"44.0"``; ``"v1.2"`` -> ``"1.2"``; junk -> None.
+
+    A few feed records carry dates or notes in version fields. Parsed naively they turn
+    into bogus versions (44.0.17.8.2023) and wrong matches.
+    """
+    m = _VERSION_RE.match(str(raw).strip())
+    return m.group(1) if m else None
+
+
+def _wf_range(spec: dict[str, Any]) -> VersionRange | None:
+    """Map a Wordfence interval; None if a bound can't be parsed (no finding beats a wrong one)."""
     low, high = spec.get("from_version", "*"), spec.get("to_version", "*")
     rng = VersionRange()
     if low != "*":
-        rng.introduced = str(low)
+        rng.introduced = clean_version(low)
+        if rng.introduced is None:
+            return None
         rng.introduced_exclusive = not spec.get("from_inclusive", True)
     if high != "*":
+        if (bound := clean_version(high)) is None:
+            return None
         if spec.get("to_inclusive", True):
-            rng.last_affected = str(high)
+            rng.last_affected = bound
         else:
-            rng.fixed = str(high)
+            rng.fixed = bound
     return rng
 
 
@@ -189,7 +211,11 @@ def parse_wordfence(
             if prefix is None:
                 continue
             key = prefix if prefix == "wordpress" else prefix + str(sw.get("slug", ""))
-            ranges = [_wf_range(r) for r in (sw.get("affected_versions") or {}).values()]
+            ranges = [
+                rng
+                for r in (sw.get("affected_versions") or {}).values()
+                if (rng := _wf_range(r)) is not None
+            ]
             if not ranges:
                 continue
             vulns.setdefault(key, []).append(
@@ -283,7 +309,16 @@ async def build_snapshot(
         source("cisa-kev", KEV_URL, "CC0-1.0", kev),
         source("iana-rdap", RDAP_URL, None, rdap),
     )
-    if wordfence_key:
+    wf_prev = prev.sources.get("wordfence")
+    wf_fresh = (
+        wf_prev is not None
+        and datetime.now(UTC) - wf_prev.fetched_at < WORDFENCE_MIN_INTERVAL
+        and any(k.startswith("wordpress") for k in prev.vulns)
+    )
+    if wordfence_key and wf_fresh:
+        assert wf_prev is not None
+        log.info("wordfence skipped: previous copy is from %s", wf_prev.fetched_at.isoformat())
+    elif wordfence_key:
         await source(
             "wordfence",
             WORDFENCE_URL,
