@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { use, useCallback, useEffect, useState } from "react";
 
 import { api, ApiError, type ProgressEvent, type Scan, type Stage } from "@/lib/api";
@@ -14,6 +15,7 @@ const POLL_MS = 3000;
 
 export function ScanView({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const share = useSearchParams().get("share");
   const [scan, setScan] = useState<Scan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressEvent | null>(null);
@@ -27,23 +29,23 @@ export function ScanView({ params }: { params: Promise<{ id: string }> }) {
   /** Re-fetch the scan (after progress ends, or after a re-check/dismiss). */
   const load = useCallback(async () => {
     try {
-      setScan(await api.getScan(id));
+      setScan(await api.getScan(id, share));
       setError(null);
     } catch (err) {
       fail(err);
     }
-  }, [id, fail]);
+  }, [id, share, fail]);
 
   useEffect(() => {
     let active = true;
-    api.getScan(id).then(
+    api.getScan(id, share).then(
       (s) => active && setScan(s),
       (err) => active && fail(err),
     );
     return () => {
       active = false;
     };
-  }, [id, fail]);
+  }, [id, share, fail]);
 
   const running = scan !== null && !isFinished(scan);
 
@@ -99,7 +101,7 @@ export function ScanView({ params }: { params: Promise<{ id: string }> }) {
       />
     );
   }
-  return <Results scan={scan} onChanged={load} />;
+  return <Results scan={scan} share={share} onChanged={load} />;
 }
 
 export function ScanSkeleton() {

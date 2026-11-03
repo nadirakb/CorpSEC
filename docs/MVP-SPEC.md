@@ -303,6 +303,7 @@ States: `queued → running → completed | partial | failed`.
 
 ### 7.5 Reports
 
+- *Implemented (M5):* the PDF is a print-optimised page (`/scan/{id}/print`) saved with the browser's "Save as PDF", so the server needs no headless browser; "Send to my IT person" emails a read-only share link valid for 30 days (scans of monitored sites) or the public link (anonymous scans).
 - **PDF report** (signed-in, verified sites): cover with grade, executive summary in plain language, then technical appendix (evidence, references, check IDs) for the user's IT person.
 - **"Send to my IT person"**: emails the technical report (or share link) to an address the user types. The user clicks Send; CorpSEC never auto-sends to third parties.
 - **JSON export** of findings (schema in `schemas/finding.schema.json`).

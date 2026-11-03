@@ -19,6 +19,7 @@ from corpsec_api.monitoring import (
 )
 from corpsec_api.progress import RedisProgressBus
 from corpsec_api.queue import SCAN_JOB
+from corpsec_api.retention import purge_old_data
 from corpsec_api.scans import execute_recheck, execute_scan
 from corpsec_api.settings import get_settings
 from corpsec_scanner import ScanOptions, load_checks
@@ -111,6 +112,10 @@ async def light_checks_job(ctx: dict[str, Any]) -> int:
     )
 
 
+async def purge_job(ctx: dict[str, Any]) -> dict[str, int]:
+    return await purge_old_data(ctx["sessions"])
+
+
 async def recheck_finding_job(ctx: dict[str, Any], finding_id: str) -> dict[str, Any] | None:
     options = ScanOptions(intel=ctx["intel"].get())
     return await execute_recheck(ctx["sessions"], finding_id, ctx["checks"], options)
@@ -121,6 +126,7 @@ class WorkerSettings:
     cron_jobs: ClassVar[list[Any]] = [
         cron(schedule_due_scans_job, minute={0, 15, 30, 45}, unique=True),
         cron(light_checks_job, minute={5, 35}, unique=True),
+        cron(purge_job, hour={3}, minute={17}, unique=True),
     ]
     on_startup = startup
     on_shutdown = shutdown

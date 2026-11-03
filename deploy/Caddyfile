@@ -1,0 +1,17 @@
+# Front proxy: the only public entry point in production.
+#
+# Caddy sets X-Forwarded-For to the real client address and ignores any value the client
+# sent (no trusted_proxies configured here), so the API can rely on it for rate limits.
+# The web app passes the header on to the API unchanged.
+{
+	# Replace with your domain for automatic HTTPS, e.g. corpsec.example
+	auto_https off
+}
+
+:8080 {
+	encode zstd gzip
+	reverse_proxy web:3000 {
+		# Server-Sent Events: forward immediately, never buffer
+		flush_interval -1
+	}
+}

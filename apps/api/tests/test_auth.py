@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from corpsec_api.auth import safe_next
 from corpsec_api.db import LoginToken
 from corpsec_api.mailer import MemoryMailer
+from corpsec_api.settings import Settings
 from corpsec_scanner.models import utcnow
 
 from .conftest import WEB_URL, pytestmark, sign_in  # noqa: F401
@@ -99,6 +100,17 @@ async def test_cross_site_writes_blocked(client: httpx.AsyncClient) -> None:
     assert r.status_code == 403
     r = await client.post("/v1/scans", json={"target": "example.com"}, headers={"Origin": WEB_URL})
     assert r.status_code == 202
+
+
+async def test_extra_origins_allowed(
+    app_factory: Callable[[], httpx.AsyncClient], settings: Settings
+) -> None:
+    settings.extra_origins = ["http://localhost:3000"]
+    async with app_factory() as client:
+        r = await client.post(
+            "/v1/scans", json={"target": "example.com"}, headers={"Origin": "http://localhost:3000"}
+        )
+        assert r.status_code == 202
 
 
 async def test_two_people_are_separate(

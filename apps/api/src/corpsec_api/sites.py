@@ -10,14 +10,17 @@ from typing import Literal
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import delete as sa_delete
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from corpsec_api.db import Alert, AuditLog, Scan, Site
 from corpsec_api.deps import CurrentUser, QueueDep, SessionDep, client_ip
 from corpsec_api.monitoring import first_scan_time
+from corpsec_api.policy import check_target
+from corpsec_api.ratelimit import RateLimiter
 from corpsec_api.scans import new_scan
+from corpsec_api.settings import Settings
 from corpsec_api.verification import METHODS, instructions, new_token
 from corpsec_scanner import ScanStatus, normalize_target
 from corpsec_scanner.models import new_id, utcnow
@@ -140,9 +143,17 @@ async def owned_site(session: AsyncSession, site_id: str, user_id: str) -> Site:
 
 
 @router.post("", status_code=201)
-async def add_site(body: SiteCreate, user: CurrentUser, session: SessionDep) -> SiteOut:
+async def add_site(
+    body: SiteCreate, request: Request, user: CurrentUser, session: SessionDep
+) -> SiteOut:
     target = normalize_target(body.domain)
     domain = target.registrable_domain
+    settings: Settings = request.app.state.settings
+    count = await session.scalar(select(func.count()).where(Site.owner_id == user.id)) or 0
+    if count >= settings.max_sites_per_user:
+        raise StarletteHTTPException(
+            403, f"Free accounts can add up to {settings.max_sites_per_user} sites."
+        )
     existing = await session.scalar(
         select(Site).where(Site.owner_id == user.id, Site.domain == domain)
     )
@@ -256,9 +267,18 @@ async def scan_site(
     site_id: str, request: Request, user: CurrentUser, session: SessionDep, queue: QueueDep
 ) -> ScanSummary:
     site = await owned_site(session, site_id, user.id)
-    scan = new_scan(
-        normalize_target(site.domain), site.domain, site_id=site.id, ip=client_ip(request)
-    )
+    target = normalize_target(site.domain)
+    await check_target(session, target, verified_owner=site.verified_at is not None)
+    settings: Settings = request.app.state.settings
+    limiter: RateLimiter = request.app.state.limiter
+    decision = await limiter.hit(f"scan:user:{user.id}", settings.user_scans_per_day, 86400)
+    if not decision.allowed:
+        raise StarletteHTTPException(
+            429,
+            "You've reached today's limit of checks. Weekly checks still run.",
+            headers={"Retry-After": str(decision.retry_after)},
+        )
+    scan = new_scan(target, site.domain, site_id=site.id, ip=client_ip(request))
     session.add(scan)
     session.add(
         AuditLog(

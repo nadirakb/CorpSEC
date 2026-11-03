@@ -15,6 +15,70 @@ export const en = {
   footer: {
     responsible:
       "Only check websites you own or are allowed to test. CorpSEC looks at your site the way a normal visitor does. It never attacks it.",
+    links: { bot: "How we scan & opt out", privacy: "Privacy", terms: "Terms" },
+  },
+  redacted: {
+    title: "Some details are hidden",
+    text: "To protect site owners, we don't show where exposed files are or what's in them until you prove the site is yours.",
+    cta: "Verify this site",
+  },
+  share: {
+    button: "Send to my IT person",
+    title: "Send this report",
+    lede: "We'll email a link to the full report, with the technical details they need. They don't need an account.",
+    email: "Their email address",
+    note: "Message (optional)",
+    send: "Send",
+    sending: "Sending…",
+    sent: (email: string) => `Sent to ${email}.`,
+    cancel: "Cancel",
+    signIn: "Sign in to send reports by email.",
+  },
+  print: {
+    button: "Download PDF",
+    save: "Save as PDF",
+    title: (domain: string) => `Security report: ${domain}`,
+    summary: "Summary",
+    problems: "Problems and how to fix them",
+    appendix: "Technical appendix",
+    generated: (when: string) => `Report created ${when} by CorpSEC`,
+    passedCount: (n: number) => `${n} checks passed.`,
+  },
+  bot: {
+    title: "How CorpSEC checks websites",
+    lede: "CorpSEC is a security checker for small businesses. Here is exactly what it does when it looks at a website, and how to ask it to stay away.",
+    sections: [
+      {
+        h: "What we do",
+        p: [
+          "We visit a site the way a normal browser does: we open the homepage and up to 20 linked pages, and we look at the security settings the site sends back.",
+          "We look up public DNS records (like the ones that protect email) and the domain's registration date.",
+          "We ask for about 25 well-known file names that should never be public, like a .env or .git folder, and read at most 4 KB of each.",
+        ],
+      },
+      {
+        h: "What we never do",
+        p: [
+          "We never send attack payloads, guess passwords, fill in forms or try to break in.",
+          "We send at most 150 requests per check, no more than 5 per second, and only GET, HEAD and OPTIONS requests.",
+          "We never connect to private or internal networks.",
+        ],
+      },
+      {
+        h: "How to recognise us",
+        p: ["Our requests use the user agent CorpSEC/0.1 (+https://corpsec.app/bot)."],
+      },
+    ],
+    optoutTitle: "Ask CorpSEC not to check your domain",
+    optoutLede: "Add a DNS record to prove the domain is yours. After that, nobody can check it with CorpSEC.",
+    domainLabel: "Your domain",
+    getRecord: "Show my record",
+    addRecord: "Add this TXT record to your domain, then press Confirm.",
+    confirm: "Confirm",
+    done: (d: string) => `Done. CorpSEC will not check ${d} anymore.`,
+  },
+  legal: {
+    draft: "Draft for review. This text has not been checked by a lawyer yet.",
   },
   landing: {
     kicker: "Free security check",

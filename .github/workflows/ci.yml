@@ -77,7 +77,7 @@ jobs:
       - name: Build lab
         run: docker compose -f deploy/lab/compose.yml build
       - name: Start lab sites
-        run: docker compose -f deploy/lab/compose.yml up -d --wait dns bad good
+        run: docker compose -f deploy/lab/compose.yml up -d --wait dns bad good self
       - name: Scan lab sites
         run: docker compose -f deploy/lab/compose.yml run --rm runner
       - name: Logs on failure

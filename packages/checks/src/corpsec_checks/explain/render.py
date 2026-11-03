@@ -187,8 +187,10 @@ def explain(finding: Finding, site: SiteContext, lang: str = "en") -> Explanatio
     return Explanation(
         check_id=finding.check_id,
         title=render(tpl.pass_title if passed else tpl.title, values),
-        summary=render(tpl.summary, values),
-        analogy=render(tpl.analogy, values) if tpl.analogy else None,
+        # Summaries and analogies describe the problem; a pass shows its title and why the
+        # protection matters instead, so it never reads like something is wrong.
+        summary="" if passed else render(tpl.summary, values),
+        analogy=render(tpl.analogy, values) if tpl.analogy and not passed else None,
         why_it_matters=[render(s, values) for s in tpl.why_it_matters],
         fix_steps=[] if passed else [render(s, values) for s in tpl.fix.get(fix_for, [])],
         fix_for=fix_for,

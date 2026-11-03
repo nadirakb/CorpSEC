@@ -81,3 +81,27 @@ def verification_lost(to: str, domain: str, link: str) -> Mail:
             f"To start again, verify the site once more:\n{link}\n\nCorpSEC"
         ),
     )
+
+
+def share_report(
+    to: str,
+    sender: str,
+    domain: str,
+    grade: str | None,
+    top: Sequence[str],
+    link: str,
+    note: str | None,
+) -> Mail:
+    fixes = "\n".join(f"  {i}. {t}" for i, t in enumerate(top, 1)) or "  (nothing urgent)"
+    personal = f"\nMessage from {sender}:\n{note}\n" if note else ""
+    return Mail(
+        to=to,
+        subject=f"Security report for {domain} (grade {grade or '?'})",
+        text=(
+            f"Hello,\n\n{sender} shared a CorpSEC security report for {domain} with you.\n"
+            f"{personal}\n"
+            f"Grade: {grade or 'not graded'}\n\nWhat to fix first:\n{fixes}\n\n"
+            f"Full report with technical details and evidence:\n{link}\n\n"
+            "The link is read-only. It works for 30 days.\n\nCorpSEC"
+        ),
+    )
