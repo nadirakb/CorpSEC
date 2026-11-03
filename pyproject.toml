@@ -9,17 +9,19 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = ["packages/scanner", "packages/checks", "apps/api"]
+members = ["packages/scanner", "packages/checks", "packages/intel", "apps/api"]
 
 [tool.uv.sources]
 corpsec-scanner = { workspace = true }
 corpsec-checks = { workspace = true }
+corpsec-intel = { workspace = true }
 corpsec-api = { workspace = true }
 
 [dependency-groups]
 dev = [
     "corpsec-scanner",
     "corpsec-checks",
+    "corpsec-intel",
     "corpsec-api",
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
@@ -38,7 +40,7 @@ select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "S", "SIM", "RUF"]
 ignore = ["S101"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["corpsec_scanner", "corpsec_checks", "corpsec_api"]
+known-first-party = ["corpsec_scanner", "corpsec_checks", "corpsec_intel", "corpsec_api"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S104", "S105", "S106", "RUF001"]
@@ -46,15 +48,20 @@ known-first-party = ["corpsec_scanner", "corpsec_checks", "corpsec_api"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-testpaths = ["packages/scanner/tests", "packages/checks/tests", "apps/api/tests"]
+testpaths = [
+    "packages/scanner/tests",
+    "packages/checks/tests",
+    "packages/intel/tests",
+    "apps/api/tests",
+]
 addopts = "--import-mode=importlib"
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-packages = ["corpsec_scanner", "corpsec_checks", "corpsec_api"]
+packages = ["corpsec_scanner", "corpsec_checks", "corpsec_intel", "corpsec_api"]
 
 [[tool.mypy.overrides]]
-module = ["arq.*", "tldextract.*"]
+module = ["arq.*", "tldextract.*", "ijson.*"]
 ignore_missing_imports = true

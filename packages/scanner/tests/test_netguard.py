@@ -9,6 +9,7 @@ from corpsec_scanner.netguard import (
     GuardedNetworkBackend,
     GuardedTransport,
     IpPolicy,
+    NetConfig,
 )
 
 
@@ -65,7 +66,13 @@ async def test_blocks_loopback_at_connect_time(local_server: int) -> None:
 
 
 async def test_loopback_escape_hatch_connects(local_server: int) -> None:
-    transport = GuardedTransport(policy=IpPolicy(allow_loopback=True))
+    transport = GuardedTransport(net=NetConfig(policy=IpPolicy(allow_loopback=True)))
     async with httpx.AsyncClient(transport=transport) as client:
         r = await client.get(f"http://localhost:{local_server}/")
     assert r.text == "ok"
+
+
+def test_lab_networks_allowed_only_when_configured() -> None:
+    assert not IpPolicy().is_allowed("172.30.0.5")
+    assert IpPolicy(allowed_networks=("172.30.0.0/24",)).is_allowed("172.30.0.5")
+    assert not IpPolicy(allowed_networks=("172.30.0.0/24",)).is_allowed("172.30.1.5")

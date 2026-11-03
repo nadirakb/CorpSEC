@@ -10,6 +10,8 @@ dependencies = [
     "idna>=3.10",
     "pydantic>=2.10",
     "tldextract>=5.1",
+    "certifi>=2024.8",
+    "cryptography>=43",
 ]
 
 [project.scripts]

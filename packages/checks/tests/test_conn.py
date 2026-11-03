@@ -4,8 +4,8 @@ import httpx
 import pytest
 
 from corpsec_checks import CHECKS
-from corpsec_checks.conn_001.check import HttpsReachable
-from corpsec_checks.conn_002.check import HttpRedirectsToHttps
+from corpsec_checks.connection.conn_001 import HttpsReachable
+from corpsec_checks.connection.conn_002 import HttpRedirectsToHttps
 from corpsec_scanner import ScanOptions, Severity, load_checks, run_scan
 
 Handler = Callable[[httpx.Request], httpx.Response]

@@ -1,0 +1,5 @@
+$ORIGIN azurewebsites.net.
+$TTL 60
+@   IN SOA ns.azurewebsites.net. admin.azurewebsites.net. 1 3600 600 86400 60
+@   IN NS  ns.azurewebsites.net.
+ns  IN A   172.30.0.53

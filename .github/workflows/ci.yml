@@ -50,3 +50,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -f deploy/Dockerfile -t corpsec-api:ci .
+
+  lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build lab
+        run: docker compose -f deploy/lab/compose.yml build
+      - name: Start lab sites
+        run: docker compose -f deploy/lab/compose.yml up -d --wait dns bad good
+      - name: Scan lab sites
+        run: docker compose -f deploy/lab/compose.yml run --rm runner
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f deploy/lab/compose.yml logs
+      - name: Tear down
+        if: always()
+        run: docker compose -f deploy/lab/compose.yml down -v

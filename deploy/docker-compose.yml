@@ -9,6 +9,9 @@ x-app: &app
   environment:
     CORPSEC_DATABASE_URL: postgresql+asyncpg://corpsec:corpsec@postgres:5432/corpsec
     CORPSEC_REDIS_URL: redis://redis:6379/0
+    CORPSEC_INTEL_PATH: /data/intel.json
+  volumes:
+    - intel:/data
 
 services:
   postgres:
@@ -38,6 +41,16 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
 
+  intel-sync:
+    <<: *app
+    # Fills the intel volume once at startup. In production run it nightly (M4 scheduler).
+    command: ["corpsec-intel-sync", "--out", "/data/intel.json", "--previous", "/data/intel.json"]
+    environment:
+      # Optional: WordPress vulnerabilities from Wordfence. Put it in deploy/.env (gitignored).
+      CORPSEC_WORDFENCE_API_KEY: ${CORPSEC_WORDFENCE_API_KEY:-}
+    user: root
+    restart: "no"
+
   api:
     <<: *app
     ports: ["127.0.0.1:8000:8000"]
@@ -51,6 +64,9 @@ services:
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
+      # Not waited for: the worker picks the snapshot up whenever the file appears.
+      intel-sync: { condition: service_started }
 
 volumes:
   pgdata:
+  intel:

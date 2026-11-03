@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "corpsec-scanner",
     "corpsec-checks",
+    "corpsec-intel",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "sqlalchemy[asyncio]>=2.0.36",
@@ -18,6 +19,7 @@ dependencies = [
 [tool.uv.sources]
 corpsec-scanner = { workspace = true }
 corpsec-checks = { workspace = true }
+corpsec-intel = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

@@ -11,8 +11,9 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import socket
-from collections.abc import Iterable
-from dataclasses import dataclass
+import ssl
+from collections.abc import Awaitable, Callable, Iterable
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpcore
@@ -32,6 +33,8 @@ class BlockedAddressError(Exception):
 class IpPolicy:
     allow_loopback: bool = False
     """Test-only escape hatch so the guarded client can be exercised against a local server."""
+    allowed_networks: tuple[str, ...] = ()
+    """Extra networks to allow. Only for the vulnerable lab (deploy/lab), never in production."""
 
     def is_allowed(self, address: str) -> bool:
         ip = ipaddress.ip_address(address.split("%", 1)[0])
@@ -39,10 +42,15 @@ class IpPolicy:
             ip = ip.ipv4_mapped
         if self.allow_loopback and ip.is_loopback:
             return True
+        if any(ip in ipaddress.ip_network(net) for net in self.allowed_networks):
+            return True
         return ip.is_global and not ip.is_multicast
 
 
 DEFAULT_IP_POLICY = IpPolicy()
+
+Resolver = Callable[[str, int], Awaitable[list[str]]]
+"""Returns every address a host resolves to. Raises ``socket.gaierror`` if it doesn't."""
 
 
 async def resolve_host(host: str, port: int = 443) -> list[str]:
@@ -64,9 +72,64 @@ def check_addresses(host: str, addresses: Iterable[str], policy: IpPolicy) -> li
     return addresses
 
 
+@dataclass(frozen=True, slots=True)
+class NetConfig:
+    """How the scanner reaches the network. Production uses the defaults."""
+
+    policy: IpPolicy = DEFAULT_IP_POLICY
+    resolver: Resolver = resolve_host
+    ca_file: str | None = None
+    """CA bundle for certificate verification; ``None`` uses certifi's bundle."""
+    _ssl_cache: dict[str, ssl.SSLContext] = field(default_factory=dict, compare=False)
+
+    async def resolve_public(self, host: str, port: int) -> list[str]:
+        """Resolve and validate. Raises ``BlockedAddressError`` or ``socket.gaierror``."""
+        return check_addresses(host, await self.resolver(host, port), self.policy)
+
+    def verifying_context(self) -> ssl.SSLContext:
+        ctx = self._ssl_cache.get("verify")
+        if ctx is None:
+            import certifi
+
+            ctx = ssl.create_default_context(cafile=self.ca_file or certifi.where())
+            self._ssl_cache["verify"] = ctx
+        return ctx
+
+
+DEFAULT_NET = NetConfig()
+
+
+async def open_guarded_connection(
+    net: NetConfig,
+    host: str,
+    port: int,
+    *,
+    ssl_context: ssl.SSLContext | None = None,
+    timeout: float = 10.0,  # noqa: ASYNC109 - per-address connect timeout
+) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+    """asyncio.open_connection to a validated address of ``host`` (SNI = ``host``)."""
+    addresses = await net.resolve_public(host, port)
+    last_exc: Exception | None = None
+    for address in addresses:
+        try:
+            async with asyncio.timeout(timeout):
+                return await asyncio.open_connection(
+                    address,
+                    port,
+                    ssl=ssl_context,
+                    server_hostname=host if ssl_context else None,
+                )
+        except (OSError, TimeoutError) as exc:
+            last_exc = exc
+            if isinstance(exc, ssl.SSLError):
+                raise
+    assert last_exc is not None
+    raise last_exc
+
+
 class GuardedNetworkBackend(httpcore.AsyncNetworkBackend):
-    def __init__(self, policy: IpPolicy = DEFAULT_IP_POLICY) -> None:
-        self._policy = policy
+    def __init__(self, net: NetConfig = DEFAULT_NET) -> None:
+        self._net = net
         self._inner = httpcore.AnyIOBackend()
 
     async def connect_tcp(
@@ -78,11 +141,10 @@ class GuardedNetworkBackend(httpcore.AsyncNetworkBackend):
         socket_options: Iterable[Any] | None = None,
     ) -> httpcore.AsyncNetworkStream:
         try:
-            addresses = await resolve_host(host, port)
+            # Rejects the host if *any* address is non-public, not just the one we pick.
+            addresses = await self._net.resolve_public(host, port)
         except socket.gaierror as exc:
             raise httpcore.ConnectError(f"cannot resolve {host}: {exc}") from exc
-        # Reject the host if *any* address is non-public, not just the one we pick.
-        addresses = check_addresses(host, addresses, self._policy)
         last_exc: Exception | None = None
         for address in addresses:
             try:
@@ -114,8 +176,10 @@ class GuardedTransport(httpx.AsyncHTTPTransport):
     httpx is upgraded.
     """
 
-    def __init__(self, *, verify: bool = True, policy: IpPolicy = DEFAULT_IP_POLICY) -> None:
-        super().__init__(verify=verify, http2=False, retries=0)
+    def __init__(self, *, verify: bool = True, net: NetConfig = DEFAULT_NET) -> None:
+        super().__init__(
+            verify=net.verifying_context() if verify else False, http2=False, retries=0
+        )
         ssl_context = self._pool._ssl_context
         self._pool = httpcore.AsyncConnectionPool(
             ssl_context=ssl_context,
@@ -124,5 +188,5 @@ class GuardedTransport(httpx.AsyncHTTPTransport):
             keepalive_expiry=5.0,
             http1=True,
             http2=False,
-            network_backend=GuardedNetworkBackend(policy),
+            network_backend=GuardedNetworkBackend(net),
         )

@@ -13,6 +13,7 @@ from corpsec_scanner.check import Check
 from corpsec_scanner.context import ScanContext
 from corpsec_scanner.dns import DnsClient
 from corpsec_scanner.http import HttpPolicy, SafeHttpClient, TransportFactory
+from corpsec_scanner.intel import EMPTY_SNAPSHOT, IntelSnapshot
 from corpsec_scanner.models import (
     CheckRun,
     CheckRunStatus,
@@ -24,14 +25,9 @@ from corpsec_scanner.models import (
     new_id,
     utcnow,
 )
-from corpsec_scanner.netguard import (
-    DEFAULT_IP_POLICY,
-    BlockedAddressError,
-    IpPolicy,
-    check_addresses,
-    resolve_host,
-)
+from corpsec_scanner.netguard import DEFAULT_NET, BlockedAddressError, NetConfig
 from corpsec_scanner.target import ScanTarget, normalize_target
+from corpsec_scanner.tls import TlsProber
 
 
 class PlanError(Exception):
@@ -43,9 +39,16 @@ class ScanOptions:
     budget_seconds: float = 120.0
     per_check_timeout: float = 60.0
     http_policy: HttpPolicy = field(default_factory=HttpPolicy)
-    ip_policy: IpPolicy = DEFAULT_IP_POLICY
+    external_http_policy: HttpPolicy = field(
+        default_factory=lambda: HttpPolicy(max_requests=10, max_body_bytes=200_000)
+    )
+    net: NetConfig = DEFAULT_NET
     transport_factory: TransportFactory | None = None
+    """Override HTTP transports (tests use ``httpx.MockTransport``)."""
     dns: DnsClient | None = None
+    """``None`` creates a fresh (per-scan cached) client."""
+    tls: TlsProber | None = None
+    intel: IntelSnapshot = field(default_factory=lambda: EMPTY_SNAPSHOT)
     preflight: bool = True
     """Resolve the target and refuse non-public addresses before running any check."""
 
@@ -80,6 +83,8 @@ def plan(checks: Sequence[Check]) -> list[list[Check]]:
             if fact not in producers:
                 raise PlanError(f"{check.id} requires fact {fact!r} that no check provides")
             deps[check.id].update(p.id for p in producers[fact] if p.id != check.id)
+        for fact in check.uses:
+            deps[check.id].update(p.id for p in producers.get(fact, []) if p.id != check.id)
 
     by_id = {c.id: c for c in checks}
     layers: list[list[Check]] = []
@@ -94,14 +99,12 @@ def plan(checks: Sequence[Check]) -> list[list[Check]]:
     return layers
 
 
-async def _preflight(target: ScanTarget, policy: IpPolicy) -> str | None:
+async def _preflight(target: ScanTarget, net: NetConfig) -> str | None:
     """Return a user-facing error, or None if the target may be scanned."""
     try:
-        addresses = await resolve_host(target.host)
+        await net.resolve_public(target.host, 443)
     except socket.gaierror:
         return f"We couldn't find {target.host}. Check the spelling and try again."
-    try:
-        check_addresses(target.host, addresses, policy)
     except BlockedAddressError:
         return "CorpSEC can only check public websites."
     return None
@@ -137,17 +140,31 @@ async def run_scan(
     layers = plan(checks)
 
     if opts.preflight:
-        error = await _preflight(target, opts.ip_policy)
+        error = await _preflight(target, opts.net)
         if error:
             return result(ScanStatus.FAILED, error=error)
 
     http = SafeHttpClient(
         target.in_scope,
         opts.http_policy,
-        ip_policy=opts.ip_policy,
+        net=opts.net,
         transport_factory=opts.transport_factory,
     )
-    ctx = ScanContext(scan_id=scan_id, target=target, http=http, dns=opts.dns or DnsClient())
+    external = SafeHttpClient(
+        lambda host: True,
+        opts.external_http_policy,
+        net=opts.net,
+        transport_factory=opts.transport_factory,
+    )
+    ctx = ScanContext(
+        scan_id=scan_id,
+        target=target,
+        http=http,
+        dns=opts.dns or DnsClient(),
+        tls=opts.tls or TlsProber(opts.net),
+        external=external,
+        intel=opts.intel,
+    )
     runs: dict[str, CheckRun] = {}
     findings: list[Finding] = []
     total = len(checks)
@@ -210,6 +227,7 @@ async def run_scan(
         timed_out = True
     finally:
         await http.aclose()
+        await external.aclose()
 
     if timed_out:
         for check in checks:

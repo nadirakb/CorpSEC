@@ -1,0 +1,66 @@
+# Vulnerable lab — see README.md
+name: corpsec-lab
+
+x-runner: &runner
+  build:
+    context: ../..
+    dockerfile: deploy/lab/Dockerfile.runner
+  image: corpsec-lab-runner:dev
+
+networks:
+  lab:
+    internal: true  # no route to the internet
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  certs:
+
+services:
+  certgen:
+    <<: *runner
+    command: ["python", "deploy/lab/certgen.py", "/certs"]
+    volumes: [certs:/certs]
+    network_mode: none
+
+  dns:
+    image: coredns/coredns:1.11.3
+    command: ["-conf", "/etc/coredns/Corefile"]
+    volumes: [./dns:/etc/coredns:ro]
+    networks:
+      lab: { ipv4_address: 172.30.0.53 }
+
+  bad:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./bad/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./bad/www:/srv/www:ro
+      - certs:/certs:ro
+    depends_on:
+      certgen: { condition: service_completed_successfully }
+    networks:
+      lab: { ipv4_address: 172.30.0.10 }
+
+  good:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./good/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./good/www:/srv/www:ro
+      - certs:/certs:ro
+    depends_on:
+      certgen: { condition: service_completed_successfully }
+    networks:
+      lab: { ipv4_address: 172.30.0.20 }
+
+  runner:
+    <<: *runner
+    command: ["pytest", "-v", "deploy/lab/tests"]
+    environment:
+      CORPSEC_LAB: "1"
+      CORPSEC_LAB_DNS: 172.30.0.53
+      CORPSEC_LAB_CA: /certs/ca.crt
+    volumes: [certs:/certs:ro]
+    depends_on: [dns, bad, good]
+    networks:
+      lab: { ipv4_address: 172.30.0.100 }

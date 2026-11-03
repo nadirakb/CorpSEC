@@ -1,0 +1,16 @@
+corpsec-lab-bad.com {
+    file /etc/coredns/corpsec-lab-bad.com.zone
+}
+corpsec-lab-good.com {
+    file /etc/coredns/corpsec-lab-good.com.zone
+}
+# Empty zone so the dangling CNAME target returns NXDOMAIN (as a deleted Azure app would).
+azurewebsites.net {
+    file /etc/coredns/azurewebsites.net.zone
+}
+. {
+    # Everything else is refused: the lab has no internet.
+    template ANY ANY {
+        rcode REFUSED
+    }
+}
