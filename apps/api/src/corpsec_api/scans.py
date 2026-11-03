@@ -5,17 +5,29 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, Literal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from corpsec_api.db import FindingCheck, FindingRow, Scan
 from corpsec_api.reporting import apply_grade, grade_findings, row_to_finding
 from corpsec_scanner import Check, ScanOptions, ScanStatus, Severity, run_scan
 from corpsec_scanner.engine import ProgressCallback
-from corpsec_scanner.models import CheckRunStatus, FindingStatus, utcnow
+from corpsec_scanner.models import CheckRunStatus, FindingStatus, new_id, utcnow
 from corpsec_scanner.target import ScanTarget
 
 RecheckResult = Literal["fixed", "still_present", "inconclusive"]
+
+
+def new_scan(target: ScanTarget, raw: str, *, site_id: str | None, ip: str | None) -> Scan:
+    return Scan(
+        id=new_id("scn"),
+        site_id=site_id,
+        target=raw.strip(),
+        host=target.host,
+        registrable_domain=target.registrable_domain,
+        status=ScanStatus.QUEUED,
+        requested_by_ip=ip,
+    )
 
 
 def _target(scan: Scan) -> ScanTarget:
@@ -52,6 +64,7 @@ async def execute_scan(
         scan.check_runs = [r.model_dump(mode="json") for r in result.check_runs]
         if result.status != ScanStatus.FAILED:
             apply_grade(scan, grade_findings(result.findings, checks))
+        first_seen = await _first_seen(session, site_id) if site_id else {}
         for f in result.findings:
             data = f.model_dump(mode="json")
             session.add(
@@ -69,12 +82,27 @@ async def execute_scan(
                     evidence=data["evidence"],
                     context=f.context,
                     references=f.references,
-                    first_seen=f.first_seen,
+                    first_seen=first_seen.get((f.check_id, f.host, f.dedupe_key), f.first_seen),
                     last_seen=f.last_seen,
                 )
             )
         await session.commit()
     return result.status
+
+
+async def _first_seen(session: AsyncSession, site_id: str) -> dict[tuple[str, str, str], Any]:
+    """When each problem was first seen on this site, so history survives re-scans (§8.1)."""
+    rows = await session.execute(
+        select(
+            FindingRow.check_id,
+            FindingRow.host,
+            FindingRow.dedupe_key,
+            func.min(FindingRow.first_seen),
+        )
+        .where(FindingRow.site_id == site_id)
+        .group_by(FindingRow.check_id, FindingRow.host, FindingRow.dedupe_key)
+    )
+    return {(c, h, k): seen for c, h, k, seen in rows}
 
 
 def with_dependencies(check_id: str, checks: Sequence[Check]) -> list[Check]:

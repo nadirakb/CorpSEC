@@ -26,7 +26,8 @@ def vuln_observation(
     source: str,
     severity: Severity | None = None,
 ) -> Observation:
-    shown = vulns[:20]
+    # Worst first: known-exploited, then highest score, so the report leads with what matters.
+    shown = sorted(vulns, key=lambda v: (not intel.in_kev(v), -(v.cvss or 0.0)))[:20]
     # Licences of some sources (Wordfence/Defiant, MITRE) require their notice and licence
     # to travel with every copy of the data, so the evidence carries them.
     holders = sorted({h for v in shown for h in v.copyright if h in intel.attributions})

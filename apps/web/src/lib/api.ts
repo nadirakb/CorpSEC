@@ -49,6 +49,8 @@ export interface StageGrade {
 
 export interface Scan {
   id: string;
+  /** Set for scans of a monitored site (owner-only). */
+  site_id: string | null;
   target: string;
   host: string;
   status: ScanStatus;
@@ -82,6 +84,51 @@ export interface ActionResult {
   score: number | null;
 }
 
+export interface Me {
+  id: string;
+  email: string;
+}
+
+export type Platform =
+  | "wordpress" | "joomla" | "drupal" | "shopify" | "wix" | "squarespace" | "webflow" | "custom" | "unknown";
+
+export interface ScanSummary {
+  id: string;
+  status: ScanStatus;
+  grade: string | null;
+  score: number | null;
+  finished_at: string | null;
+}
+
+export interface VerifyInstructions {
+  txt_name: string;
+  txt_value: string;
+  file_url: string;
+  file_content: string;
+  meta_tag: string;
+}
+
+export interface Site {
+  id: string;
+  domain: string;
+  platform: Platform | null;
+  verified: boolean;
+  verification_method: "dns" | "file" | "meta" | null;
+  monitoring_enabled: boolean;
+  monitoring_paused_reason: string | null;
+  next_scan_at: string | null;
+  latest: ScanSummary | null;
+  previous_grade: string | null;
+  instructions: VerifyInstructions | null;
+}
+
+export interface SiteDetail extends Site {
+  history: ScanSummary[];
+  alerts: { kind: string; created_at: string; payload: Record<string, unknown> }[];
+}
+
+export type VerifyMethod = "dns" | "file" | "meta";
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -103,6 +150,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     throw new ApiError("We couldn't reach CorpSEC. Check your internet connection.", 0);
   }
+  if (res.status === 204) return undefined as T;
   if (!res.ok) {
     // RFC 9457 problem details; the title is written for users.
     const body = await res.json().catch(() => null);
@@ -132,4 +180,35 @@ export const api = {
     request<ActionResult>(`/findings/${encodeURIComponent(findingId)}/restore`, {
       method: "POST",
     }),
+
+  // accounts
+  me: () => request<Me>("/me"),
+  requestLink: (email: string, next?: string) =>
+    request<{ status: string }>("/auth/magic-link", {
+      method: "POST",
+      body: JSON.stringify({ email, next }),
+    }),
+  verifyLink: (token: string) =>
+    request<Me>("/auth/verify", { method: "POST", body: JSON.stringify({ token }) }),
+  logout: () => request<void>("/auth/logout", { method: "POST" }),
+
+  // sites
+  sites: () => request<Site[]>("/sites"),
+  site: (id: string) => request<SiteDetail>(`/sites/${encodeURIComponent(id)}`),
+  addSite: (domain: string, platform: Platform | null) =>
+    request<Site>("/sites", { method: "POST", body: JSON.stringify({ domain, platform }) }),
+  updateSite: (id: string, patch: { platform?: Platform; monitoring_enabled?: boolean }) =>
+    request<Site>(`/sites/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  deleteSite: (id: string) =>
+    request<void>(`/sites/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  verifySite: (id: string, method: VerifyMethod) =>
+    request<{ verified: boolean; message: string }>(`/sites/${encodeURIComponent(id)}/verify`, {
+      method: "POST",
+      body: JSON.stringify({ method }),
+    }),
+  scanSite: (id: string) =>
+    request<ScanSummary>(`/sites/${encodeURIComponent(id)}/scans`, { method: "POST" }),
 };

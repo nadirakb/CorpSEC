@@ -9,11 +9,12 @@ import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
+from urllib.parse import urlsplit
 
 from arq import create_pool
 from arq.connections import RedisSettings
-from fastapi import Depends, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -22,15 +23,18 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from corpsec_api.db import AuditLog, FindingRow, Scan, make_engine
+from corpsec_api import auth, sites
+from corpsec_api.db import AuditLog, FindingRow, Scan, Site, User, make_engine
+from corpsec_api.deps import OptionalUser, QueueDep, SessionDep
+from corpsec_api.mailer import Mailer, make_mailer
 from corpsec_api.progress import Event, ProgressBus, RedisProgressBus
 from corpsec_api.queue import ArqScanQueue, ScanQueue
 from corpsec_api.reporting import explained_findings
-from corpsec_api.scans import regrade
-from corpsec_api.settings import get_settings
+from corpsec_api.scans import new_scan, regrade
+from corpsec_api.settings import Settings, get_settings
 from corpsec_checks.explain import Explanation, load_templates
 from corpsec_scanner import InvalidTargetError, ScanStatus, Severity, load_checks, normalize_target
-from corpsec_scanner.models import FindingStatus, new_id
+from corpsec_scanner.models import FindingStatus
 
 
 class ScanCreate(BaseModel):
@@ -68,6 +72,8 @@ class StageGradeOut(BaseModel):
 
 class ScanOut(BaseModel):
     id: str
+    site_id: str | None
+    """Set for scans of a monitored site; those are visible to the site owner only."""
     target: str
     host: str
     status: str
@@ -116,6 +122,8 @@ def create_app(
     sessions: async_sessionmaker[AsyncSession] | None = None,
     queue: ScanQueue | None = None,
     progress: ProgressBus | None = None,
+    mailer: Mailer | None = None,
+    settings: Settings | None = None,
 ) -> FastAPI:
     """Build the app. Tests inject ``sessions`` and ``queue``; otherwise they come from settings."""
 
@@ -141,18 +149,29 @@ def create_app(
     app.state.sessions = sessions
     app.state.queue = queue
     app.state.progress = progress
+    app.state.settings = settings or get_settings()
+    app.state.mailer = mailer or make_mailer(app.state.settings)
     checks = load_checks()
+    app.include_router(auth.router)
+    app.include_router(sites.router)
+    allowed_origin = "{0.scheme}://{0.netloc}".format(urlsplit(app.state.settings.web_url))
 
-    async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
-        async with request.app.state.sessions() as session:
-            yield session
+    @app.middleware("http")
+    async def same_origin_writes(request: Request, call_next: Any) -> Any:
+        # Defence in depth next to SameSite=Lax cookies: browsers send Origin on POST/PATCH/
+        # DELETE, so cross-site form posts and fetches are refused outright.
+        origin = request.headers.get("origin")
+        if request.method not in ("GET", "HEAD", "OPTIONS") and origin and origin != allowed_origin:
+            return problem(403, "This request came from another website and was blocked.")
+        return await call_next(request)
 
-    def get_queue(request: Request) -> ScanQueue:
-        q: ScanQueue = request.app.state.queue
-        return q
-
-    SessionDep = Annotated[AsyncSession, Depends(get_session)]
-    QueueDep = Annotated[ScanQueue, Depends(get_queue)]
+    async def check_scan_access(session: AsyncSession, scan: Scan, user: User | None) -> None:
+        """Anonymous scans are shared by link; scans of a monitored site are owner-only."""
+        if scan.site_id is None:
+            return
+        site = await session.get(Site, scan.site_id)
+        if site is None or user is None or site.owner_id != user.id:
+            raise StarletteHTTPException(404, "We couldn't find that scan.")
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -176,14 +195,7 @@ def create_app(
     ) -> ScanCreated:
         target = normalize_target(body.target)
         client_ip = request.client.host if request.client else None
-        scan = Scan(
-            id=new_id("scn"),
-            target=body.target.strip(),
-            host=target.host,
-            registrable_domain=target.registrable_domain,
-            status=ScanStatus.QUEUED,
-            requested_by_ip=client_ip,
-        )
+        scan = new_scan(target, body.target, site_id=None, ip=client_ip)
         session.add(scan)
         session.add(AuditLog(actor_ip=client_ip, action="scan.create", target=target.host))
         await session.commit()
@@ -191,7 +203,9 @@ def create_app(
         return ScanCreated(id=scan.id, status=scan.status)
 
     @app.get("/v1/scans/{scan_id}")
-    async def get_scan(scan_id: str, session: SessionDep, lang: str = "en") -> ScanOut:
+    async def get_scan(
+        scan_id: str, session: SessionDep, user: OptionalUser, lang: str = "en"
+    ) -> ScanOut:
         # TODO(M5): redact evidence for anonymous / unverified viewers (spec §10.2).
         if not load_templates(lang):
             raise StarletteHTTPException(422, "That language isn't available yet.")
@@ -200,8 +214,10 @@ def create_app(
         )
         if scan is None:
             raise StarletteHTTPException(404, "We couldn't find that scan.")
+        await check_scan_access(session, scan, user)
         return ScanOut(
             id=scan.id,
+            site_id=scan.site_id,
             target=scan.target,
             host=scan.host,
             status=scan.status,
@@ -239,10 +255,14 @@ def create_app(
         )
 
     @app.get("/v1/scans/{scan_id}/events")
-    async def scan_events(scan_id: str, request: Request, session: SessionDep) -> StreamingResponse:
+    async def scan_events(
+        scan_id: str, request: Request, session: SessionDep, user: OptionalUser
+    ) -> StreamingResponse:
         """Server-Sent Events: ``progress`` events while running, then one ``done``."""
-        if await session.get(Scan, scan_id) is None:
+        found = await session.get(Scan, scan_id)
+        if found is None:
             raise StarletteHTTPException(404, "We couldn't find that scan.")
+        await check_scan_access(session, found, user)
         await session.close()
         bus: ProgressBus = request.app.state.progress
         sessions: async_sessionmaker[AsyncSession] = request.app.state.sessions
@@ -293,17 +313,25 @@ def create_app(
             headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"},
         )
 
-    async def finding_or_404(session: AsyncSession, finding_id: str) -> FindingRow:
+    async def finding_or_404(
+        session: AsyncSession, finding_id: str, user: User | None
+    ) -> FindingRow:
         row = await session.get(FindingRow, finding_id)
-        if row is None:
+        scan = await session.get(Scan, row.scan_id) if row else None
+        if row is None or scan is None:
             raise StarletteHTTPException(404, "We couldn't find that problem.")
+        await check_scan_access(session, scan, user)
         return row
 
     @app.post("/v1/findings/{finding_id}/recheck")
     async def recheck(
-        finding_id: str, request: Request, session: SessionDep, queue: QueueDep
+        finding_id: str,
+        request: Request,
+        session: SessionDep,
+        queue: QueueDep,
+        user: OptionalUser,
     ) -> RecheckOut:
-        row = await finding_or_404(session, finding_id)
+        row = await finding_or_404(session, finding_id, user)
         client_ip = request.client.host if request.client else None
         session.add(AuditLog(actor_ip=client_ip, action="finding.recheck", target=row.id))
         await session.commit()
@@ -317,9 +345,13 @@ def create_app(
 
     @app.post("/v1/findings/{finding_id}/dismiss")
     async def dismiss(
-        finding_id: str, body: DismissIn, request: Request, session: SessionDep
+        finding_id: str,
+        body: DismissIn,
+        request: Request,
+        session: SessionDep,
+        user: OptionalUser,
     ) -> RecheckOut:
-        row = await finding_or_404(session, finding_id)
+        row = await finding_or_404(session, finding_id, user)
         if row.severity == Severity.CRITICAL and body.reason != "false_positive":
             # spec §7.6: serious problems can only be dismissed as false alarms
             raise StarletteHTTPException(
@@ -339,8 +371,10 @@ def create_app(
         return RecheckOut(result="still_present", grade=scan.grade, score=scan.score)
 
     @app.post("/v1/findings/{finding_id}/restore")
-    async def restore(finding_id: str, request: Request, session: SessionDep) -> RecheckOut:
-        row = await finding_or_404(session, finding_id)
+    async def restore(
+        finding_id: str, request: Request, session: SessionDep, user: OptionalUser
+    ) -> RecheckOut:
+        row = await finding_or_404(session, finding_id, user)
         if row.status == FindingStatus.DISMISSED:
             row.status = FindingStatus.OPEN
             row.dismissed_reason = None

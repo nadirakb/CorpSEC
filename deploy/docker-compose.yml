@@ -1,5 +1,5 @@
 # Local development stack: docker compose -f deploy/docker-compose.yml up --build
-# Web app: http://localhost:3000  API: http://localhost:8000
+# Web app: http://localhost:3000  API: http://localhost:8000  Emails: http://localhost:8025
 name: corpsec
 
 x-app: &app
@@ -11,6 +11,11 @@ x-app: &app
     CORPSEC_DATABASE_URL: postgresql+asyncpg://corpsec:corpsec@postgres:5432/corpsec
     CORPSEC_REDIS_URL: redis://redis:6379/0
     CORPSEC_INTEL_PATH: /data/intel.json
+    CORPSEC_WEB_URL: http://localhost:3000
+    # Development mail catcher: read sign-in links and alerts at http://localhost:8025
+    CORPSEC_SMTP_HOST: mailpit
+    CORPSEC_SMTP_PORT: "1025"
+    CORPSEC_SMTP_STARTTLS: "false"
   volumes:
     - intel:/data
 
@@ -35,6 +40,10 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
       retries: 30
+
+  mailpit:
+    image: axllent/mailpit:v1.24
+    ports: ["127.0.0.1:8025:8025"]
 
   migrate:
     <<: *app
