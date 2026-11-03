@@ -1,0 +1,20 @@
+[project]
+name = "corpsec-scanner"
+version = "0.1.0"
+description = "CorpSEC scan engine: check framework, scan context and SSRF-guarded network clients"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28",
+    "httpcore>=1.0",
+    "dnspython>=2.7",
+    "idna>=3.10",
+    "pydantic>=2.10",
+    "tldextract>=5.1",
+]
+
+[project.scripts]
+corpsec-scan = "corpsec_scanner.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

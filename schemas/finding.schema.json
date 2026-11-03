@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://corpsec.app/schemas/finding.schema.json",
   "title": "CorpSEC Finding",
-  "description": "A single security observation produced by a CorpSEC check. See docs/MVP-SPEC.md §8.",
+  "description": "A single security observation produced by a CorpSEC check. See docs/MVP-SPEC.md \u00a78.",
   "type": "object",
   "required": [
     "id",
@@ -19,16 +19,34 @@
   ],
   "additionalProperties": false,
   "properties": {
-    "id": { "type": "string", "pattern": "^fnd_[0-9A-HJKMNP-TV-Z]{26}$" },
-    "check_id": { "type": "string", "pattern": "^[A-Z]{2,5}-[0-9]{3}$" },
-    "check_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
-    "scan_id": { "type": "string", "pattern": "^scn_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "id": {
+      "type": "string",
+      "pattern": "^fnd_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "check_id": {
+      "type": "string",
+      "pattern": "^[A-Z]{2,5}-[0-9]{3}$"
+    },
+    "check_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "scan_id": {
+      "type": "string",
+      "pattern": "^scn_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
     "site_id": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "pattern": "^site_[0-9A-HJKMNP-TV-Z]{26}$",
       "description": "Null for anonymous scans."
     },
-    "host": { "type": "string", "format": "hostname" },
+    "host": {
+      "type": "string",
+      "format": "hostname"
+    },
     "dedupe_key": {
       "type": "string",
       "description": "Distinguishes multiple findings of the same check on the same host (e.g. path, cookie name).",
@@ -36,73 +54,179 @@
     },
     "severity": {
       "type": "string",
-      "enum": ["critical", "high", "medium", "low", "info", "pass"]
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "info",
+        "pass"
+      ]
     },
     "confidence": {
       "type": "string",
-      "enum": ["confirmed", "likely", "possible"]
+      "enum": [
+        "confirmed",
+        "likely",
+        "possible"
+      ]
     },
     "status": {
       "type": "string",
-      "enum": ["open", "fixed", "dismissed"]
+      "enum": [
+        "open",
+        "fixed",
+        "dismissed"
+      ]
     },
     "dismissed_reason": {
-      "type": ["string", "null"],
-      "enum": ["accepted_risk", "false_positive", "not_applicable", null]
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "accepted_risk",
+        "false_positive",
+        "not_applicable",
+        null
+      ]
     },
-    "evidence": { "$ref": "#/$defs/evidence" },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
     "context": {
       "type": "object",
       "description": "Facts used to pick a platform-specific fix guide.",
       "properties": {
-        "platform": { "type": "string" },
-        "email_provider": { "type": "string" },
-        "dns_provider": { "type": "string" }
+        "platform": {
+          "type": "string"
+        },
+        "email_provider": {
+          "type": "string"
+        },
+        "dns_provider": {
+          "type": "string"
+        }
       },
-      "additionalProperties": { "type": "string" }
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "vulnerabilities": {
       "type": "array",
       "description": "Known vulnerabilities matched to an observed software version (SW-* checks).",
       "items": {
         "type": "object",
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "properties": {
-          "id": { "type": "string", "description": "CVE, GHSA or OSV identifier." },
-          "cvss": { "type": ["number", "null"], "minimum": 0, "maximum": 10 },
-          "kev": { "type": "boolean", "default": false }
+          "id": {
+            "type": "string",
+            "description": "CVE, GHSA or OSV identifier."
+          },
+          "cvss": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 10
+          },
+          "kev": {
+            "type": "boolean",
+            "default": false
+          }
         },
         "additionalProperties": false
       }
     },
     "references": {
       "type": "array",
-      "items": { "type": "string", "format": "uri" }
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
     },
-    "first_seen": { "type": "string", "format": "date-time" },
-    "last_seen": { "type": "string", "format": "date-time" },
-    "fixed_at": { "type": ["string", "null"], "format": "date-time" }
+    "first_seen": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_seen": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fixed_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
   },
   "$defs": {
     "evidence": {
       "type": "object",
-      "required": ["kind", "captured_at"],
+      "required": [
+        "kind",
+        "captured_at"
+      ],
       "properties": {
-        "kind": { "type": "string", "enum": ["http", "tls", "dns", "rdap", "fingerprint"] },
-        "captured_at": { "type": "string", "format": "date-time" },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "http",
+            "tls",
+            "dns",
+            "rdap",
+            "fingerprint"
+          ]
+        },
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
         "request": {
-          "type": "object",
+          "type": [
+            "object",
+            "null"
+          ],
           "properties": {
-            "method": { "type": "string", "enum": ["GET", "HEAD", "OPTIONS"] },
-            "url": { "type": "string", "format": "uri" },
-            "headers": { "type": "object", "additionalProperties": { "type": "string" } }
+            "method": {
+              "type": "string",
+              "enum": [
+                "GET",
+                "HEAD",
+                "OPTIONS"
+              ]
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "headers": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
           }
         },
         "response": {
-          "type": "object",
+          "type": [
+            "object",
+            "null"
+          ],
           "properties": {
-            "status": { "type": "integer" },
-            "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+            "status": {
+              "type": "integer"
+            },
+            "headers": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
             "body_excerpt": {
               "type": "string",
               "maxLength": 4096,
@@ -110,9 +234,19 @@
             }
           }
         },
-        "query": { "type": "string", "description": "DNS/RDAP query, e.g. '_dmarc.example.com TXT'." },
-        "observed": { "description": "Observed value (string, list, or structured TLS result)." },
-        "expected": { "description": "What a passing configuration looks like." }
+        "query": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "DNS/RDAP query, e.g. '_dmarc.example.com TXT'."
+        },
+        "observed": {
+          "description": "Observed value (string, list, or structured TLS result)."
+        },
+        "expected": {
+          "description": "What a passing configuration looks like."
+        }
       },
       "additionalProperties": false
     }
