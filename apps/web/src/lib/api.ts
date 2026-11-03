@@ -89,6 +89,8 @@ export interface Me {
   email: string;
 }
 
+export type OAuthProvider = "google" | "microsoft";
+
 export type Platform =
   | "wordpress" | "joomla" | "drupal" | "shopify" | "wix" | "squarespace" | "webflow" | "custom" | "unknown";
 
@@ -191,6 +193,11 @@ export const api = {
   verifyLink: (token: string) =>
     request<Me>("/auth/verify", { method: "POST", body: JSON.stringify({ token }) }),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
+  /** Sign-in providers the server has credentials for; buttons for the others stay hidden. */
+  providers: () => request<{ providers: OAuthProvider[] }>("/auth/providers"),
+  /** A full-page navigation, not a fetch: the API redirects to the provider and back. */
+  oauthStartUrl: (provider: OAuthProvider, next?: string) =>
+    `${BASE}/auth/oauth/${provider}/start` + (next ? `?next=${encodeURIComponent(next)}` : ""),
 
   // sites
   sites: () => request<Site[]>("/sites"),

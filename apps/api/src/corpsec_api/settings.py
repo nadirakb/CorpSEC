@@ -26,6 +26,16 @@ class Settings(BaseSettings):
     smtp_starttls: bool = True
     mail_from: str = "CorpSEC <no-reply@corpsec.app>"
 
+    # Sign in with Google / Microsoft (OpenID Connect). A provider is offered only when both its
+    # client id and secret are set. Redirect URI to register with the provider:
+    # {web_url}/api/v1/auth/oauth/<google|microsoft>/callback
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    microsoft_client_id: str | None = None
+    microsoft_client_secret: str | None = None
+    microsoft_tenant: str = "common"
+    """``common`` accepts work, school and personal accounts; a tenant id limits it to one org."""
+
 
 @lru_cache
 def get_settings() -> Settings:

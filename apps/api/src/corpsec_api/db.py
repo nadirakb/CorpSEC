@@ -65,6 +65,39 @@ class UserSession(TimestampMixin, Base):
     user_agent: Mapped[str | None] = mapped_column(String(256))
 
 
+class UserIdentity(TimestampMixin, Base):
+    """A Google or Microsoft account linked to a user, keyed by the provider's stable subject."""
+
+    __tablename__ = "user_identities"
+    __table_args__ = (UniqueConstraint("provider", "subject"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    provider: Mapped[str] = mapped_column(String(16))
+    subject: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str] = mapped_column(String(320))
+    """Verified email the provider reported at the last sign-in (informational)."""
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class OAuthFlow(TimestampMixin, Base):
+    """A started OAuth sign-in, waiting for the provider's callback. Single use, short-lived.
+
+    The browser holds ``state`` in a cookie; only its SHA-256 is stored.
+    """
+
+    __tablename__ = "oauth_flows"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    state_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    provider: Mapped[str] = mapped_column(String(16))
+    nonce: Mapped[str] = mapped_column(String(128))
+    code_verifier: Mapped[str] = mapped_column(String(128))
+    next_path: Mapped[str] = mapped_column(String(512))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    requested_ip: Mapped[str | None] = mapped_column(String(45))
+
+
 class Site(TimestampMixin, Base):
     __tablename__ = "sites"
     __table_args__ = (UniqueConstraint("owner_id", "domain"),)

@@ -15,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from corpsec_api.db import User, UserSession
 from corpsec_api.mailer import Mailer
+from corpsec_api.oidc import OidcClient
 from corpsec_api.queue import ScanQueue
 from corpsec_api.settings import Settings
 from corpsec_scanner.models import utcnow
@@ -41,6 +42,11 @@ def get_mailer(request: Request) -> Mailer:
     return m
 
 
+def get_oidc(request: Request) -> OidcClient:
+    c: OidcClient = request.app.state.oidc
+    return c
+
+
 def get_app_settings(request: Request) -> Settings:
     s: Settings = request.app.state.settings
     return s
@@ -50,6 +56,7 @@ SessionDep = Annotated[AsyncSession, Depends(get_db)]
 QueueDep = Annotated[ScanQueue, Depends(get_queue)]
 MailerDep = Annotated[Mailer, Depends(get_mailer)]
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
+OidcDep = Annotated[OidcClient, Depends(get_oidc)]
 
 
 async def optional_user(request: Request, session: SessionDep) -> User | None:

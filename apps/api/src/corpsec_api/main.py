@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
+import httpx
 from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import FastAPI, Request
@@ -27,6 +28,7 @@ from corpsec_api import auth, sites
 from corpsec_api.db import AuditLog, FindingRow, Scan, Site, User, make_engine
 from corpsec_api.deps import OptionalUser, QueueDep, SessionDep
 from corpsec_api.mailer import Mailer, make_mailer
+from corpsec_api.oidc import OidcClient
 from corpsec_api.progress import Event, ProgressBus, RedisProgressBus
 from corpsec_api.queue import ArqScanQueue, ScanQueue
 from corpsec_api.reporting import explained_findings
@@ -124,8 +126,12 @@ def create_app(
     progress: ProgressBus | None = None,
     mailer: Mailer | None = None,
     settings: Settings | None = None,
+    oauth_http: httpx.AsyncClient | None = None,
 ) -> FastAPI:
-    """Build the app. Tests inject ``sessions`` and ``queue``; otherwise they come from settings."""
+    """Build the app. Tests inject ``sessions`` and ``queue``; otherwise they come from settings.
+
+    ``oauth_http`` is the client used to reach Google and Microsoft (tests pass a fake provider).
+    """
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -141,6 +147,8 @@ def create_app(
             if app.state.progress is None:
                 app.state.progress = RedisProgressBus(redis)
             cleanup.append(redis.aclose)
+        if oauth_http is None:
+            cleanup.append(app.state.oidc.http.aclose)
         yield
         for fn in cleanup:
             await fn()
@@ -151,6 +159,7 @@ def create_app(
     app.state.progress = progress
     app.state.settings = settings or get_settings()
     app.state.mailer = mailer or make_mailer(app.state.settings)
+    app.state.oidc = OidcClient(oauth_http or httpx.AsyncClient(timeout=10))
     checks = load_checks()
     app.include_router(auth.router)
     app.include_router(sites.router)

@@ -51,6 +51,37 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy
 
 The compose stack sends all email (sign-in links, alerts) to [Mailpit](https://mailpit.axllent.org/). Open http://localhost:8025 to read it. For real delivery set `CORPSEC_SMTP_HOST`, `CORPSEC_SMTP_PORT`, `CORPSEC_SMTP_USERNAME`, `CORPSEC_SMTP_PASSWORD` and `CORPSEC_MAIL_FROM`; set `CORPSEC_WEB_URL` to the public address of the web app so links point to it.
 
+### Sign in with Google and Microsoft
+
+Email sign-in links always work. "Continue with Google" and "Continue with Microsoft" buttons appear only for providers whose client id **and** secret are set; without them the provider is switched off and its endpoints return 404. Both use OpenID Connect (authorization code + PKCE, `state` and `nonce`; the ID token's signature, issuer, audience, expiry and nonce are checked). A provider account is linked to an existing CorpSEC account only through an email address the provider has verified, and is remembered by its stable subject id, so a later email change at the provider doesn't lock anyone out.
+
+The redirect (callback) URL to register is built from `CORPSEC_WEB_URL`, because the browser reaches the API through the web app's `/api` rewrite:
+
+```
+{CORPSEC_WEB_URL}/api/v1/auth/oauth/google/callback
+{CORPSEC_WEB_URL}/api/v1/auth/oauth/microsoft/callback
+```
+
+For the compose stack that is `http://localhost:3000/api/v1/auth/oauth/<provider>/callback` (both providers allow `http://localhost`); in production use your public `https://` address.
+
+**Google** ([Google Cloud console](https://console.cloud.google.com/)):
+
+1. Create or pick a project. Under **Google Auth Platform → Branding**, fill in the app name, support email and authorised domain; under **Audience** choose *External*.
+2. Under **Data Access** add the scopes `openid`, `email` and `profile` (no sensitive scopes, so no Google review is needed).
+3. Under **Clients → Create client** choose *Web application* and add the callback URL above to **Authorised redirect URIs**.
+4. Copy the client id and secret into `CORPSEC_GOOGLE_CLIENT_ID` and `CORPSEC_GOOGLE_CLIENT_SECRET`.
+
+**Microsoft** ([Microsoft Entra admin center](https://entra.microsoft.com/) → **App registrations → New registration**):
+
+1. **Supported account types**: *Accounts in any organizational directory and personal Microsoft accounts* (matches the default `CORPSEC_MICROSOFT_TENANT=common`; set a tenant id instead to allow only one organisation).
+2. **Redirect URI**: platform *Web*, the callback URL above.
+3. Under **Token configuration → Add optional claim → ID** add `email` and `xms_edov`. Microsoft's `email` claim is not verified by itself: CorpSEC accepts it from work/school accounts only when `xms_edov` is true (the email domain's owner is verified), and from personal Microsoft accounts. Without `xms_edov`, work and school accounts are refused with a message to use the email link instead.
+4. Under **API permissions** make sure Microsoft Graph `openid`, `email` and `profile` (delegated) are listed.
+5. Under **Certificates & secrets → New client secret**, create a secret (note its expiry date; sign-in with Microsoft stops when it lapses).
+6. Copy the **Application (client) ID** and the secret's **Value** into `CORPSEC_MICROSOFT_CLIENT_ID` and `CORPSEC_MICROSOFT_CLIENT_SECRET`.
+
+Put the variables in the API's environment, or in `deploy/.env` (gitignored) for the compose stack, and restart the API. `GET /v1/auth/providers` lists the providers that are switched on.
+
 ### WordPress vulnerability data (Wordfence)
 
 WordPress core and plugin vulnerabilities come from the [Wordfence Intelligence](https://www.wordfence.com/threat-intel/) feed, which is free for personal and commercial use but needs an API key:

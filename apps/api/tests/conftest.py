@@ -45,7 +45,8 @@ async def sessions(migrated_db: str) -> AsyncIterator[async_sessionmaker[AsyncSe
         await conn.execute(
             text(
                 "TRUNCATE alerts, audit_log, finding_checks, findings, scans, sites, "
-                "login_tokens, user_sessions, users RESTART IDENTITY CASCADE"
+                "login_tokens, user_sessions, user_identities, oauth_flows, users "
+                "RESTART IDENTITY CASCADE"
             )
         )
     await engine.dispose()
@@ -121,16 +122,28 @@ def settings() -> Settings:
 
 
 @pytest.fixture
+def oauth_http() -> httpx.AsyncClient | None:
+    """Client for reaching OAuth providers; test_oauth.py overrides it with a fake provider."""
+    return None
+
+
+@pytest.fixture
 def app_factory(
     sessions: async_sessionmaker[AsyncSession],
     queue: FakeQueue,
     progress: MemoryProgressBus,
     mailer: MemoryMailer,
     settings: Settings,
+    oauth_http: httpx.AsyncClient | None,
 ) -> Callable[[], httpx.AsyncClient]:
     """New clients share the app but not cookies, so tests can act as different people."""
     app = create_app(
-        sessions=sessions, queue=queue, progress=progress, mailer=mailer, settings=settings
+        sessions=sessions,
+        queue=queue,
+        progress=progress,
+        mailer=mailer,
+        settings=settings,
+        oauth_http=oauth_http,
     )
 
     def make() -> httpx.AsyncClient:
