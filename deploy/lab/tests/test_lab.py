@@ -8,6 +8,8 @@ from datetime import date
 
 import pytest
 
+from corpsec_checks.explain import SiteContext, explain
+from corpsec_grader import GradeReport, grade
 from corpsec_scanner import ScanOptions, ScanResult, ScanStatus, Severity, load_checks, run_scan
 from corpsec_scanner.dns import DnsClient
 from corpsec_scanner.intel import (
@@ -71,6 +73,21 @@ async def lab_scan(target: str) -> ScanResult:
     return await run_scan(target, load_checks(), options=ScanOptions(net=net, dns=dns, intel=INTEL))
 
 
+def lab_grade(result: ScanResult) -> GradeReport:
+    stages = {c.id: c.stage for c in load_checks() if not c.internal}
+    return grade(result.findings, stages.get)
+
+
+def assert_all_explained(result: ScanResult) -> None:
+    site = SiteContext.from_findings(result.registrable_domain, result.host, result.findings)
+    for f in result.findings:
+        e = explain(f, site)
+        assert e is not None, f.check_id
+        assert "{{" not in e.title + e.summary + " ".join(e.fix_steps)
+        if f.severity not in (Severity.PASS, Severity.INFO):
+            assert e.fix_steps, f.check_id
+
+
 def problems(result: ScanResult) -> set[tuple[str, Severity]]:
     return {(f.check_id, f.severity) for f in result.findings if f.severity != Severity.PASS}
 
@@ -116,9 +133,19 @@ async def test_broken_site_findings() -> None:
     env = next(f for f in result.findings if f.dedupe_key == "/.env")
     assert "Bakery2026!secret" not in str(env.evidence.response)
 
+    report = lab_grade(result)
+    assert (report.letter, report.score) == ("F", 0)
+    assert {"critical", "no_valid_https"} <= set(report.caps)
+    by_id = {f.id: f for f in result.findings}
+    assert all(by_id[i].severity == Severity.CRITICAL for i in report.fix_first)
+    assert_all_explained(result)
+
 
 async def test_hardened_site_is_clean() -> None:
     result = await lab_scan("corpsec-lab-good.com")
     assert result.status == ScanStatus.COMPLETED, [r for r in result.check_runs if r.detail]
     assert {cid for cid, sev in problems(result) if sev != Severity.INFO} == set()
     assert len([f for f in result.findings if f.severity == Severity.PASS]) >= 35
+    report = lab_grade(result)
+    assert (report.letter, report.score, report.fix_first) == ("A+", 100, [])
+    assert_all_explained(result)

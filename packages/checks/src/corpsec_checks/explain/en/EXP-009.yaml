@@ -1,0 +1,16 @@
+check_id: EXP-009
+title: "Your site's error log can be read by anyone"
+pass_title: "Your error logs are private"
+summary: "The log file {{item}} is public. It shows errors, folder paths and sometimes private data."
+why_it_matters:
+  - "Logs show attackers how your site works and where it breaks."
+fix:
+  default:
+    - "Delete {{item|the log file}} or block it with your host."
+    - "Turn off public debug logging on the live site."
+  wordpress:
+    - "Delete {{item|the log file}}."
+    - "Ask your host or developer to set WP_DEBUG_LOG to false in wp-config.php, or move the log outside the website."
+effort_minutes: 15
+who_can_fix: "Your developer or web host."
+technical: "PHP error log readable at {{item}}."

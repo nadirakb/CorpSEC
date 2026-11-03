@@ -1,0 +1,18 @@
+check_id: CONN-003
+title: "The www and non-www addresses don't match"
+pass_title: "The www and non-www addresses both work"
+summary: "{{domain}} and www.{{domain}} should both work and lead to the same place. Right now one of them fails or they show different sites."
+why_it_matters:
+  - "Some visitors type www and some don't. One group may get an error."
+  - "Search engines may see two copies of your site and split your ranking."
+fix:
+  default:
+    - "Decide which address you want to use, with or without www."
+    - "Ask your web host to make the other address send visitors to it."
+    - "Make sure the secure certificate covers both addresses."
+  cloudflare:
+    - "In Cloudflare, check that both {{domain}} and www.{{domain}} have DNS records."
+    - "Go to Rules and create a redirect rule from one address to the other."
+effort_minutes: 20
+who_can_fix: "Your web host or web designer."
+technical: "https://{{domain}}/ and https://www.{{domain}}/ do not both resolve to the same final host."

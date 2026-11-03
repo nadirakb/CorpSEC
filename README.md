@@ -6,7 +6,7 @@ CorpSEC checks a website or domain and returns an A–F grade, the three things 
 
 It is inspired by professional tools such as OWASP ZAP, Nmap, OpenVAS, Burp Suite, Qualys and Acunetix, but is built for small businesses, freelancers, schools and NGOs rather than security specialists.
 
-> **Status:** pre-alpha — milestone M1 (check catalog). 55 checks, intel sync and a vulnerable test lab are in place; no web UI yet.
+> **Status:** pre-alpha — milestone M2 (grading & explanations). 55 checks, intel sync, A–F grading, plain-language explanations and a vulnerable test lab are in place; no web UI yet.
 
 ## What the MVP checks
 
@@ -63,6 +63,7 @@ Without a key the sync skips this source and WordPress vulnerability checks stay
 |---|---|
 | `packages/scanner` | Scan engine: check interface, dependency planner, SSRF-guarded rate-limited HTTP client, DNS, CLI |
 | `packages/checks` | Check catalog: one module per check, grouped by area (`connection/`, `tls/`, `website/`, `software/`, `exposure/`, `mail/`), registered via the `corpsec.checks` entry point |
+| `packages/grader` | Grading model: score, A+ to F letter, caps, stage grades, fix-first priority (spec §9) |
 | `packages/intel` | `corpsec-intel-sync`: builds the vulnerability/product snapshot used by software checks |
 | `apps/api` | FastAPI app, SQLAlchemy models, Alembic migrations, arq worker |
 | `deploy` | Dockerfile and docker-compose for local development |
@@ -73,8 +74,9 @@ Without a key the sync skips this source and WordPress vulnerability checks stay
 
 1. Create `packages/checks/src/corpsec_checks/<area>/<id>.py` with a `Check` subclass (`id`, `version`, `stage`, optional `requires` / `uses` / `provides` facts, `async run(ctx)`).
 2. Add it to `CHECKS` in `corpsec_checks/__init__.py`.
-3. Add positive and negative tests with the `scan` fixture and `FakeSite` / `FakeDns` (no real network in unit tests).
-4. If the lab can show it, add a case to `deploy/lab` and its expected finding to `deploy/lab/tests/test_lab.py`.
+3. Write its explanation in `packages/checks/src/corpsec_checks/explain/en/<ID>.yaml`. CI checks reading level (Flesch-Kincaid grade 8 or lower), unexplained jargon, placeholders and fix-step counts.
+4. Add positive and negative tests with the `scan` fixture and `FakeSite` / `FakeDns` (no real network in unit tests).
+5. If the lab can show it, add a case to `deploy/lab` and its expected finding to `deploy/lab/tests/test_lab.py`.
 
 Checks must only use `ctx.http`, `ctx.tls`, `ctx.dns` and `ctx.external`; they enforce the safety limits in spec §5.
 

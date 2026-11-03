@@ -1,0 +1,14 @@
+check_id: SW-007
+title: "Your site shows a list of its user accounts"
+pass_title: "Your site keeps its user list private"
+summary: "Anyone can get the login names of user accounts on your WordPress site. We saw {{accounts_listed|some}}. A login name is half of what is needed to break in."
+why_it_matters:
+  - "Attackers use the names to guess passwords."
+fix:
+  default:
+    - "Install a WordPress security plugin that can block the user list (many have this option)."
+    - "Make sure every account uses a strong, unique password and two-step login."
+effort_minutes: 15
+who_can_fix: "You, or whoever manages your WordPress site."
+technical: "/wp-json/wp/v2/users returns {{accounts_listed}} user objects to anonymous requests."
+variables: [accounts_listed]

@@ -1,0 +1,8 @@
+check_id: SW-001
+title: "Your site is built with {{platform_name|the software listed below}}"
+pass_title: "We found what your site is built with"
+summary: "We found what your website runs on. We use this to give you the right steps for your setup."
+why_it_matters:
+  - "This is not a problem. It helps us show fixes that match your site."
+effort_minutes: 0
+technical: "Detected technologies (see evidence)."

@@ -1,0 +1,13 @@
+check_id: SW-008
+title: "An old WordPress login door is open"
+pass_title: "The old WordPress login door is closed"
+summary: "The file xmlrpc.php is turned on. It is an old way to log in that attackers use to guess many passwords quickly."
+why_it_matters:
+  - "Attackers can try hundreds of passwords in one go through this file."
+fix:
+  default:
+    - "If you don't use the WordPress mobile app or Jetpack, turn off XML-RPC."
+    - "Most WordPress security plugins have a switch for this, or your host can block the file."
+effort_minutes: 10
+who_can_fix: "You, or whoever manages your WordPress site."
+technical: "/xmlrpc.php is enabled (405 'XML-RPC server accepts POST requests only')."

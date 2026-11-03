@@ -1,0 +1,15 @@
+check_id: HDR-006
+title: "Your server shows which software version it runs"
+pass_title: "Your server hides its software versions"
+summary: "Your server tells every visitor the exact software version it uses ({{item|see details}}). That helps attackers pick their tools."
+why_it_matters:
+  - "Attackers search for sites running versions with known holes."
+  - "Hiding it does not fix holes, but it makes you a less easy target."
+fix:
+  default:
+    - "Ask your web host or IT person to hide version numbers in server replies."
+    - "For example, set server_tokens off in nginx, or ServerTokens Prod in Apache."
+    - "Also hide the PHP version by setting expose_php to Off."
+effort_minutes: 15
+who_can_fix: "Your web host or IT person."
+technical: "Response header {{item}} discloses a version number."

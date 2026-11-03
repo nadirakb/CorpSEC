@@ -1,0 +1,24 @@
+check_id: MAIL-006
+title: "We couldn't find an email signature key for your domain"
+pass_title: "Your emails are digitally signed"
+summary: "We couldn't find an email signature key (DKIM) for @{{domain}}. Without it, your emails carry no seal that proves they are real."
+why_it_matters:
+  - "Signed emails are trusted more and land in spam less often."
+  - "Your email protection rule (DMARC) works best with a signature."
+fix:
+  default:
+    - "Log in to your email provider and look for DKIM or email authentication."
+    - "Copy the DNS record they give you into your DNS settings."
+    - "Go back to your email provider and turn DKIM on."
+  google_workspace:
+    - "Sign in to the Google Admin console."
+    - "Go to Apps, then Google Workspace, then Gmail, then Authenticate email."
+    - "Press Generate new record, then add the TXT record shown to your DNS settings."
+    - "Wait an hour, then press Start authentication."
+  microsoft_365:
+    - "Sign in to the Microsoft Defender portal."
+    - "Go to Email & collaboration, then Policies & rules, then Threat policies, then Email authentication settings, then DKIM."
+    - "Pick {{domain}}, add the two CNAME records shown to your DNS settings, then turn signing on."
+effort_minutes: 20
+who_can_fix: "Whoever manages your email."
+technical: "No DKIM key found at common selectors (selectors cannot be listed, so this may be a false alarm if you use a custom selector)."

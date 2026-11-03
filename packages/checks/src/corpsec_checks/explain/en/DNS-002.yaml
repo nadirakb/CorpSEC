@@ -1,0 +1,19 @@
+check_id: DNS-002
+title: "Your domain's address book is not signed"
+pass_title: "Your domain's address book is signed"
+summary: "The internet's address book for {{domain}} is not protected with a digital seal (DNSSEC). Fake answers are harder to spot."
+why_it_matters:
+  - "Attackers can sometimes send visitors or emails to the wrong place with fake answers."
+  - "This is extra protection. It is good to have, not urgent."
+fix:
+  default:
+    - "Log in to the company that runs your domain's DNS."
+    - "Look for a setting called DNSSEC and turn it on."
+    - "If your DNS and your registrar are different companies, copy the DS record they show you into the registrar."
+  cloudflare:
+    - "In Cloudflare, open your domain and go to DNS, then Settings."
+    - "Press Enable DNSSEC."
+    - "Copy the DS record shown into your registrar's DNSSEC settings."
+effort_minutes: 20
+who_can_fix: "Whoever manages your domain."
+technical: "No DS record published for {{domain}}."

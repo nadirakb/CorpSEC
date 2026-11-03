@@ -1,0 +1,13 @@
+check_id: MAIL-008
+title: "Incoming email could be read in transit"
+pass_title: "Incoming email must use a secure connection"
+summary: "Your domain doesn't require other servers to use a secure connection when they deliver mail to you (MTA-STS)."
+why_it_matters:
+  - "This is extra protection for email in transit. It is good to have, not urgent."
+fix:
+  default:
+    - "Ask your email provider or IT person to set up MTA-STS and TLS reporting."
+    - "Google Workspace and Microsoft 365 both have guides for this."
+effort_minutes: 60
+who_can_fix: "Your IT person or email provider."
+technical: "No _mta-sts / _smtp._tls TXT records (RFC 8461, RFC 8460)."

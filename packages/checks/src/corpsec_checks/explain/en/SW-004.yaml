@@ -1,0 +1,18 @@
+check_id: SW-004
+title: "A WordPress plugin on your site has known security holes"
+pass_title: "No known security holes in your WordPress plugins"
+summary: "The plugin {{item|on your site}} (version {{version|unknown}}) has security holes that are publicly known. We found {{total|some}} in public lists."
+analogy: "It is like a guest you let in who has a copy of your keys."
+why_it_matters:
+  - "Old plugins are the most common way WordPress sites get hacked."
+  - "Attackers scan for these plugins automatically."
+fix:
+  default:
+    - "In WordPress, go to Plugins, then Installed Plugins."
+    - "Find the plugin and press Update now."
+    - "If you don't use it, deactivate it and delete it."
+    - "Press Check again."
+effort_minutes: 10
+who_can_fix: "You, or whoever manages your WordPress site."
+technical: "{{item}} {{version}}: {{total}} known vulnerabilities (Wordfence Intelligence; see evidence for IDs, links and attribution)."
+variables: [version, total]

@@ -1,0 +1,16 @@
+check_id: EXP-001
+title: "Your website's source code can be downloaded"
+pass_title: "Your website's source code is not downloadable"
+summary: "A hidden folder ({{item|.git}}) on your site lets anyone download your website's code and its history."
+analogy: "It is like leaving the building plans and spare keys taped to the front door."
+why_it_matters:
+  - "The code often contains passwords and secret keys."
+  - "Attackers can study it to find holes."
+fix:
+  default:
+    - "Ask your web host or developer to block access to the .git folder today."
+    - "Better, remove it from the live site. It is only needed by developers."
+    - "Change any passwords or keys that were in the code."
+effort_minutes: 30
+who_can_fix: "Your developer or web host."
+technical: "{{item}} is publicly readable; the repository can be reconstructed. Deny /.git/ and rotate secrets."

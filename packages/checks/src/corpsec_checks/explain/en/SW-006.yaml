@@ -1,0 +1,21 @@
+check_id: SW-006
+title: "Your server runs software that no longer gets security fixes"
+pass_title: "Your server software still gets security fixes"
+summary: "Your server runs {{product|software}} {{version}}. Its makers stopped fixing security problems in it."
+analogy: "It is like using a phone that stopped getting updates years ago."
+why_it_matters:
+  - "New holes found in it will never be fixed."
+  - "Attackers know these versions are easy targets."
+fix:
+  default:
+    - "Log in to your web host's control panel."
+    - "Find the PHP or server version setting and pick the newest version offered."
+    - "Check that your site still works, then press Check again."
+  wordpress:
+    - "In WordPress, go to Tools, then Site Health, to see your PHP version."
+    - "Log in to your host's control panel and pick a newer PHP version."
+    - "Check that your site still works, then press Check again."
+effort_minutes: 30
+who_can_fix: "Your web host."
+technical: "{{product}} {{version}} is end-of-life (release line {{release_line|?}}, support ended {{support_ended|?}})."
+variables: [product, version, release_line, support_ended]

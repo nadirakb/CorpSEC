@@ -1,0 +1,17 @@
+check_id: DNS-001
+title: "Your domain name expires soon"
+pass_title: "Your domain name is not about to expire"
+summary: "Your registration for {{domain}} ends in {{days_left|a few}} days. If it ends, your website and email stop working."
+analogy: "It is like the lease on your shop running out."
+why_it_matters:
+  - "Your website and email stop working the day it expires."
+  - "Someone else can buy your name and pretend to be you."
+fix:
+  default:
+    - "Log in to the company where you bought {{domain}} (your registrar)."
+    - "Renew the domain now."
+    - "Turn on auto-renew and check that the card on file is still valid."
+effort_minutes: 10
+who_can_fix: "Whoever owns the domain account."
+technical: "RDAP expiration event in {{days_left}} days."
+variables: [days_left]

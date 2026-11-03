@@ -1,0 +1,13 @@
+check_id: EXP-006
+title: "A hidden file lists the files on your site"
+pass_title: "No hidden file lists are public"
+summary: "A Mac system file ({{item}}) was uploaded with your site. It lists the names of other files."
+why_it_matters:
+  - "It can reveal private files that attackers then download."
+fix:
+  default:
+    - "Delete {{item|the .DS_Store file}} from your site."
+    - "Ask whoever uploads files to skip .DS_Store files next time."
+effort_minutes: 5
+who_can_fix: "Your web designer or developer."
+technical: "{{item}} is publicly readable."

@@ -7,6 +7,7 @@ dependencies = [
     "corpsec-scanner",
     "corpsec-checks",
     "corpsec-intel",
+    "corpsec-grader",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "sqlalchemy[asyncio]>=2.0.36",
@@ -20,6 +21,7 @@ dependencies = [
 corpsec-scanner = { workspace = true }
 corpsec-checks = { workspace = true }
 corpsec-intel = { workspace = true }
+corpsec-grader = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

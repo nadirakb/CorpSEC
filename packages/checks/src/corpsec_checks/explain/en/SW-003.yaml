@@ -1,0 +1,22 @@
+check_id: SW-003
+title: "Your website software has known security holes"
+pass_title: "No known security holes in your website software"
+summary: "{{product|Your website software}} {{version}} has security holes that are publicly known. We found {{total|some}} in public lists. Attackers use these lists to find targets."
+analogy: "It is like a lock model that burglars already know how to open."
+why_it_matters:
+  - "Attackers scan the whole internet for these exact versions."
+  - "Some of these holes let a stranger take over the whole site."
+fix:
+  default:
+    - "Make a backup of your site."
+    - "Update {{product|the software}} to the newest version, or ask your host to."
+    - "Press Check again."
+  wordpress:
+    - "Make a backup first."
+    - "In WordPress, go to Dashboard, then Updates, and update WordPress."
+    - "Turn on automatic updates on the same page."
+    - "Press Check again."
+effort_minutes: 20
+who_can_fix: "You, your web designer, or your host."
+technical: "{{product}} {{version}}: {{total}} known vulnerabilities (see evidence for IDs and sources)."
+variables: [product, version, total]

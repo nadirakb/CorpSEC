@@ -1,0 +1,13 @@
+check_id: MAIL-007
+title: "Your domain doesn't send email, but doesn't say so"
+pass_title: "Your domain says it never sends email"
+summary: "{{domain}} receives no email, but it doesn't tell the world it sends none either. Scammers can use it freely."
+why_it_matters:
+  - "Unused domains are popular with scammers because nobody watches them."
+fix:
+  default:
+    - "In your DNS settings, add a TXT record for {{domain}} with the value `v=spf1 -all`."
+    - "Add a TXT record with the name `_dmarc` and the value `v=DMARC1; p=reject`."
+effort_minutes: 10
+who_can_fix: "Whoever manages your domain."
+technical: "No MX; expected SPF 'v=spf1 -all' and DMARC p=reject."

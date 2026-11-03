@@ -1,0 +1,16 @@
+check_id: MAIL-005
+title: "Your email protection rule only watches, it does not block"
+pass_title: "Your email protection rule blocks fake emails"
+summary: "Your email protection rule (DMARC) is set to {{policy|watch only}}. Fake emails from @{{domain}} are still delivered."
+why_it_matters:
+  - "Monitoring is a good first step, but it does not stop scammers."
+fix:
+  default:
+    - "Look at the reports you get for a few weeks to make sure your real email passes."
+    - "In your DNS settings, open the `_dmarc` TXT record."
+    - "Change p=none to p=quarantine. Later, change it to p=reject."
+    - "Remove any pct= value lower than 100."
+effort_minutes: 10
+who_can_fix: "Whoever manages your domain or email."
+technical: "DMARC p={{policy|none}}, pct={{pct|100}}."
+variables: [policy, pct]

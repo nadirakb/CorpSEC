@@ -22,7 +22,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from corpsec_api.db import AuditLog, Scan, make_engine
 from corpsec_api.queue import ArqScanQueue, ScanQueue
+from corpsec_api.reporting import explained_findings
 from corpsec_api.settings import get_settings
+from corpsec_checks.explain import Explanation, load_templates
 from corpsec_scanner import InvalidTargetError, ScanStatus, normalize_target
 from corpsec_scanner.models import new_id
 
@@ -41,11 +43,21 @@ class FindingOut(BaseModel):
     check_id: str
     check_version: str
     host: str
+    dedupe_key: str
     severity: str
     confidence: str
     status: str
     evidence: dict[str, Any]
+    context: dict[str, Any]
+    references: list[str]
     first_seen: datetime
+    explanation: Explanation | None
+
+
+class StageGradeOut(BaseModel):
+    score: int
+    letter: str
+    counted: int
 
 
 class ScanOut(BaseModel):
@@ -55,10 +67,16 @@ class ScanOut(BaseModel):
     status: str
     started_at: datetime | None
     finished_at: datetime | None
+    score: int | None
     grade: str | None
+    grade_caps: list[str]
+    stage_grades: dict[str, StageGradeOut]
+    fix_first: list[str]
+    """Finding ids, most important first."""
     error: str | None
     check_runs: list[dict[str, Any]]
     findings: list[FindingOut]
+    """Sorted by severity (critical first; passes last)."""
 
 
 def problem(status: int, title: str, detail: str | None = None) -> JSONResponse:
@@ -144,8 +162,10 @@ def create_app(
         return ScanCreated(id=scan.id, status=scan.status)
 
     @app.get("/v1/scans/{scan_id}")
-    async def get_scan(scan_id: str, session: SessionDep) -> ScanOut:
+    async def get_scan(scan_id: str, session: SessionDep, lang: str = "en") -> ScanOut:
         # TODO(M5): redact evidence for anonymous / unverified viewers (spec §10.2).
+        if not load_templates(lang):
+            raise StarletteHTTPException(422, "That language isn't available yet.")
         scan = await session.scalar(
             select(Scan).where(Scan.id == scan_id).options(selectinload(Scan.findings))
         )
@@ -158,7 +178,13 @@ def create_app(
             status=scan.status,
             started_at=scan.started_at,
             finished_at=scan.finished_at,
+            score=scan.score,
             grade=scan.grade,
+            grade_caps=scan.grade_caps or [],
+            stage_grades={
+                k: StageGradeOut.model_validate(v) for k, v in (scan.stage_grades or {}).items()
+            },
+            fix_first=scan.fix_first or [],
             error=scan.error,
             check_runs=scan.check_runs or [],
             findings=[
@@ -167,13 +193,17 @@ def create_app(
                     check_id=f.check_id,
                     check_version=f.check_version,
                     host=f.host,
+                    dedupe_key=f.dedupe_key,
                     severity=f.severity,
                     confidence=f.confidence,
                     status=f.status,
-                    evidence=f.evidence,
+                    evidence=f.evidence.model_dump(mode="json"),
+                    context=f.context,
+                    references=f.references,
                     first_seen=f.first_seen,
+                    explanation=explanation,
                 )
-                for f in scan.findings
+                for f, explanation in explained_findings(scan, scan.findings, lang)
             ],
         )
 

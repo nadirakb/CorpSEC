@@ -1,0 +1,13 @@
+check_id: EXP-008
+title: "Old source code files can be downloaded"
+pass_title: "No old source code files are downloadable"
+summary: "A hidden folder ({{item}}) lets anyone download parts of your website's code."
+why_it_matters:
+  - "The code can contain passwords and show attackers where to look."
+fix:
+  default:
+    - "Ask your developer to remove the folder from the live site."
+    - "Change any passwords that were in the code."
+effort_minutes: 30
+who_can_fix: "Your developer or web host."
+technical: "Version control metadata exposed at {{item}} (SVN/Mercurial)."

@@ -21,6 +21,28 @@ PROVIDERS: dict[str, tuple[str, ...]] = {
     "icloud": ("mail.icloud.com",),
 }
 
+DNS_PROVIDERS: dict[str, tuple[str, ...]] = {
+    "cloudflare": ("ns.cloudflare.com",),
+    "route53": ("awsdns",),
+    "godaddy": ("domaincontrol.com",),
+    "namecheap": ("registrar-servers.com",),
+    "google_cloud_dns": ("googledomains.com",),
+    "azure_dns": ("azure-dns.com", "azure-dns.net", "azure-dns.org", "azure-dns.info"),
+    "digitalocean": ("digitalocean.com",),
+    "hetzner": ("hetzner.com", "hetzner.de"),
+    "ovh": ("ovh.net",),
+}
+
+
+def detect_dns_provider(ns_records: list[str]) -> str | None:
+    for ns in ns_records:
+        host = ns.rstrip(".").lower()
+        for provider, markers in DNS_PROVIDERS.items():
+            if any(m in host for m in markers):
+                return provider
+    return None
+
+
 DKIM_SELECTORS: dict[str | None, tuple[str, ...]] = {
     "google_workspace": ("google",),
     "microsoft_365": ("selector1", "selector2"),

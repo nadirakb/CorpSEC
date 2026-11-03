@@ -1,0 +1,15 @@
+check_id: TLS-008
+title: "Your certificate uses a weak key"
+pass_title: "Your certificate uses a strong key"
+summary: "The key behind your certificate is too short or signed in an old way, so it is easier to fake."
+why_it_matters:
+  - "A weak key can be cracked by well-funded attackers."
+  - "Some browsers already refuse such certificates."
+fix:
+  default:
+    - "Ask your web host to issue a new certificate."
+    - "Ask for an RSA key of 2048 bits or more, or an EC key of 256 bits."
+effort_minutes: 20
+who_can_fix: "Your web host."
+technical: "Certificate key {{key|?}}, signature hash {{signature_hash|?}}."
+variables: [key, signature_hash]

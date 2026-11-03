@@ -1,0 +1,19 @@
+check_id: ERR-001
+title: "Your site shows detailed error messages"
+pass_title: "Your site hides detailed error messages"
+summary: "A page on your site shows a technical error with file paths or code details. Attackers use these clues."
+why_it_matters:
+  - "Error details show how your site is built and where it is weak."
+  - "Visitors lose trust when they see broken pages."
+fix:
+  default:
+    - "Ask your developer to turn off debug mode on the live site."
+    - "Errors should be saved to a private log, not shown on the page."
+    - "Then fix the error itself on the page listed in the details."
+  wordpress:
+    - "Ask your host or developer to open the file wp-config.php."
+    - "Set WP_DEBUG and WP_DEBUG_DISPLAY to false."
+    - "Then fix the error on the page listed in the details."
+effort_minutes: 30
+who_can_fix: "Your developer or web host."
+technical: "Verbose error output on {{item}} (stack trace or debug page; kind in evidence)."

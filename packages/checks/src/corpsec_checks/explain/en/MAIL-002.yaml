@@ -1,0 +1,25 @@
+check_id: MAIL-002
+title: "Your domain doesn't list who may send its email"
+pass_title: "Your domain lists who may send its email"
+summary: "Your domain needs one clear list of the servers allowed to send email as @{{domain}} (an SPF record). It is missing, doubled, or broken."
+analogy: "It is like a guest list at the door. Without it, anyone can say they are with you."
+why_it_matters:
+  - "Scammers can send email that looks like it comes from you."
+  - "Your real emails are more likely to land in spam."
+fix:
+  default:
+    - "Find out which services send email for you, like your mailbox provider, newsletter tool or online shop."
+    - "In your DNS settings, keep one TXT record that starts with v=spf1 and lists all of them."
+    - "End it with ~all, then press Check again."
+  google_workspace:
+    - "In your DNS settings, find TXT records that start with v=spf1. Keep only one."
+    - "Set it to `v=spf1 include:_spf.google.com ~all`."
+    - "If other services send email for you, add their include parts before ~all."
+  microsoft_365:
+    - "In your DNS settings, find TXT records that start with v=spf1. Keep only one."
+    - "Set it to `v=spf1 include:spf.protection.outlook.com -all`."
+    - "If other services send email for you, add their include parts before -all."
+effort_minutes: 20
+who_can_fix: "Whoever manages your domain or email."
+technical: "SPF problem: {{problem|see evidence}} ({{dns_lookups|?}} DNS lookups; limit is 10)."
+variables: [problem, dns_lookups]

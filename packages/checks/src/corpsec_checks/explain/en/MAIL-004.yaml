@@ -1,0 +1,26 @@
+check_id: MAIL-004
+title: "Anyone can send emails pretending to be you"
+pass_title: "Your domain tells others what to do with fake emails"
+summary: "Your domain has no email protection rule (DMARC). Email providers can't tell real emails from @{{domain}} apart from fakes."
+analogy: "It is like a company letterhead anyone can print."
+why_it_matters:
+  - "Scammers can email your customers from an address that looks exactly like yours."
+  - "Gmail and Yahoo now expect this rule from anyone who sends a lot of email."
+  - "Your real emails are more likely to land in spam."
+fix:
+  default:
+    - "Log in to where your domain's DNS is managed."
+    - "Add a TXT record with the name `_dmarc` and the value `v=DMARC1; p=none; rua=mailto:dmarc@{{domain}}`."
+    - "Make sure someone reads the reports sent to that address."
+    - "After 2 to 4 weeks with no problems, change p=none to p=quarantine."
+  google_workspace:
+    - "Check that your SPF and DKIM pass first (see those checks)."
+    - "In your DNS settings, add a TXT record with the name `_dmarc` and the value `v=DMARC1; p=none; rua=mailto:dmarc@{{domain}}`."
+    - "After 2 to 4 weeks with no problems, change p=none to p=quarantine."
+  microsoft_365:
+    - "Check that your SPF and DKIM pass first (see those checks)."
+    - "In your DNS settings, add a TXT record with the name `_dmarc` and the value `v=DMARC1; p=none; rua=mailto:dmarc@{{domain}}`."
+    - "After 2 to 4 weeks with no problems, change p=none to p=quarantine."
+effort_minutes: 15
+who_can_fix: "Whoever manages your domain (often your web designer or IT provider)."
+technical: "No DMARC TXT record at _dmarc.{{domain}} (RFC 7489)."

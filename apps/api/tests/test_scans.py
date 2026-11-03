@@ -61,6 +61,22 @@ async def test_scan_end_to_end(
     assert body["host"] == "www.example.com"
     severities = {f["check_id"]: f["severity"] for f in body["findings"]}
     assert severities == {"CONN-001": "pass", "CONN-002": "high"}
+
+    # graded at completion: one high finding -> 85 points, capped at C
+    assert (body["score"], body["grade"], body["grade_caps"]) == (85, "C", ["high"])
+    assert body["stage_grades"]["connection"] == {"score": 85, "letter": "C", "counted": 1}
+    assert body["stage_grades"]["email"]["letter"] == "A"
+    high = body["findings"][0]  # sorted: problems first
+    assert high["check_id"] == "CONN-002"
+    assert body["fix_first"] == [high["id"]]
+    explanation = high["explanation"]
+    assert explanation["title"] == "Visitors are not sent to the secure version of your site"
+    assert explanation["fix_steps"] and explanation["effort"] == "about 15 minutes"
+    passed = body["findings"][1]["explanation"]
+    assert passed["title"] == "Your website opens securely" and passed["fix_steps"] == []
+
+    r = await client.get(f"/v1/scans/{scan_id}", params={"lang": "xx"})
+    assert r.status_code == 422
     assert {r["check_id"] for r in body["check_runs"]} == {"CONN-001", "CONN-002"}
 
     async with sessions() as session:

@@ -1,0 +1,20 @@
+check_id: DNS-004
+title: "A part of your domain points to a deleted service"
+pass_title: "No part of your domain points to a deleted service"
+summary: "{{subdomain|A sub-address of your domain}} still points to {{service|an online service}}, but that account no longer exists. Someone else could claim it."
+analogy: "It is like a sign pointing to your old shop. Someone new can move in and use your name."
+why_it_matters:
+  - "An attacker can create the missing account and put anything on that address."
+  - "They could steal logins or send scam emails that look like they come from you."
+fix:
+  default:
+    - "Log in to the company that runs your domain's DNS."
+    - "Find the record for {{subdomain|the address shown below}}."
+    - "Delete it if you no longer use that service, or set the service up again."
+  cloudflare:
+    - "In Cloudflare, go to DNS, then Records."
+    - "Find the record named {{subdomain|in the details below}} and delete it if you no longer use it."
+effort_minutes: 10
+who_can_fix: "Whoever manages your domain."
+technical: "{{subdomain}} CNAME {{cname}} ({{service}}) is dangling; possible subdomain takeover."
+variables: [subdomain, cname, service]

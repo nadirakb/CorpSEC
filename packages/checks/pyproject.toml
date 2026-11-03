@@ -3,7 +3,10 @@ name = "corpsec-checks"
 version = "0.1.0"
 description = "CorpSEC check catalog"
 requires-python = ">=3.12"
-dependencies = ["corpsec-scanner"]
+dependencies = [
+    "corpsec-scanner",
+    "pyyaml>=6.0",
+]
 
 [project.entry-points."corpsec.checks"]
 catalog = "corpsec_checks:CHECKS"
