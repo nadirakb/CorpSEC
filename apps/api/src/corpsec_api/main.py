@@ -4,29 +4,33 @@ No ``from __future__ import annotations`` here: FastAPI must resolve the depende
 aliases defined inside ``create_app`` at runtime.
 """
 
+import asyncio
+import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from corpsec_api.db import AuditLog, Scan, make_engine
+from corpsec_api.db import AuditLog, FindingRow, Scan, make_engine
+from corpsec_api.progress import Event, ProgressBus, RedisProgressBus
 from corpsec_api.queue import ArqScanQueue, ScanQueue
 from corpsec_api.reporting import explained_findings
+from corpsec_api.scans import regrade
 from corpsec_api.settings import get_settings
 from corpsec_checks.explain import Explanation, load_templates
-from corpsec_scanner import InvalidTargetError, ScanStatus, normalize_target
-from corpsec_scanner.models import new_id
+from corpsec_scanner import InvalidTargetError, ScanStatus, Severity, load_checks, normalize_target
+from corpsec_scanner.models import FindingStatus, new_id
 
 
 class ScanCreate(BaseModel):
@@ -51,6 +55,8 @@ class FindingOut(BaseModel):
     context: dict[str, Any]
     references: list[str]
     first_seen: datetime
+    fixed_at: datetime | None
+    dismissed_reason: str | None
     explanation: Explanation | None
 
 
@@ -79,6 +85,24 @@ class ScanOut(BaseModel):
     """Sorted by severity (critical first; passes last)."""
 
 
+class DismissIn(BaseModel):
+    reason: Literal["accepted_risk", "false_positive", "not_applicable"]
+
+
+class RecheckOut(BaseModel):
+    result: Literal["fixed", "still_present", "inconclusive"]
+    grade: str | None = None
+    score: int | None = None
+
+
+FINISHED = {ScanStatus.COMPLETED, ScanStatus.PARTIAL, ScanStatus.FAILED}
+HEARTBEAT_SECONDS = 15.0
+
+
+def sse(event: Event) -> str:
+    return f"event: {event.get('type', 'message')}\ndata: {json.dumps(event)}\n\n"
+
+
 def problem(status: int, title: str, detail: str | None = None) -> JSONResponse:
     """RFC 9457 problem details. ``title`` is user-facing."""
     body: dict[str, Any] = {"type": "about:blank", "title": title, "status": status}
@@ -91,6 +115,7 @@ def create_app(
     *,
     sessions: async_sessionmaker[AsyncSession] | None = None,
     queue: ScanQueue | None = None,
+    progress: ProgressBus | None = None,
 ) -> FastAPI:
     """Build the app. Tests inject ``sessions`` and ``queue``; otherwise they come from settings."""
 
@@ -105,6 +130,8 @@ def create_app(
         if app.state.queue is None:
             redis = await create_pool(RedisSettings.from_dsn(settings.redis_url))
             app.state.queue = ArqScanQueue(redis)
+            if app.state.progress is None:
+                app.state.progress = RedisProgressBus(redis)
             cleanup.append(redis.aclose)
         yield
         for fn in cleanup:
@@ -113,6 +140,8 @@ def create_app(
     app = FastAPI(title="CorpSEC API", version="0.1.0", lifespan=lifespan)
     app.state.sessions = sessions
     app.state.queue = queue
+    app.state.progress = progress
+    checks = load_checks()
 
     async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
         async with request.app.state.sessions() as session:
@@ -201,11 +230,128 @@ def create_app(
                     context=f.context,
                     references=f.references,
                     first_seen=f.first_seen,
+                    fixed_at=f.fixed_at,
+                    dismissed_reason=f.dismissed_reason,
                     explanation=explanation,
                 )
                 for f, explanation in explained_findings(scan, scan.findings, lang)
             ],
         )
+
+    @app.get("/v1/scans/{scan_id}/events")
+    async def scan_events(scan_id: str, request: Request, session: SessionDep) -> StreamingResponse:
+        """Server-Sent Events: ``progress`` events while running, then one ``done``."""
+        if await session.get(Scan, scan_id) is None:
+            raise StarletteHTTPException(404, "We couldn't find that scan.")
+        await session.close()
+        bus: ProgressBus = request.app.state.progress
+        sessions: async_sessionmaker[AsyncSession] = request.app.state.sessions
+
+        async def status() -> str | None:
+            async with sessions() as s:
+                scan = await s.get(Scan, scan_id)
+                return scan.status if scan else None
+
+        async def stream() -> AsyncIterator[str]:
+            # Subscribe before reading the status so a "done" can't slip in between.
+            async with bus.subscribe(scan_id) as events:
+                if await status() in FINISHED:
+                    yield sse({"type": "done"})
+                    return
+                if snap := await bus.snapshot(scan_id):
+                    yield sse(snap)
+                inbox: asyncio.Queue[Event] = asyncio.Queue()
+
+                async def pump() -> None:
+                    async for ev in events:
+                        await inbox.put(ev)
+
+                pump_task = asyncio.create_task(pump())
+                try:
+                    while True:
+                        try:
+                            ev = await asyncio.wait_for(inbox.get(), HEARTBEAT_SECONDS)
+                        except TimeoutError:
+                            if await request.is_disconnected():
+                                return
+                            if await status() in FINISHED:  # missed "done" (worker restart)
+                                yield sse({"type": "done"})
+                                return
+                            yield ": keep-alive\n\n"
+                            continue
+                        yield sse(ev)
+                        if ev.get("type") == "done":
+                            return
+                finally:
+                    pump_task.cancel()
+
+        return StreamingResponse(
+            stream(),
+            media_type="text/event-stream",
+            # no-transform: proxies (Next.js rewrites, nginx, CDNs) must not gzip the stream,
+            # or the browser only sees events once the scan has finished.
+            headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"},
+        )
+
+    async def finding_or_404(session: AsyncSession, finding_id: str) -> FindingRow:
+        row = await session.get(FindingRow, finding_id)
+        if row is None:
+            raise StarletteHTTPException(404, "We couldn't find that problem.")
+        return row
+
+    @app.post("/v1/findings/{finding_id}/recheck")
+    async def recheck(
+        finding_id: str, request: Request, session: SessionDep, queue: QueueDep
+    ) -> RecheckOut:
+        row = await finding_or_404(session, finding_id)
+        client_ip = request.client.host if request.client else None
+        session.add(AuditLog(actor_ip=client_ip, action="finding.recheck", target=row.id))
+        await session.commit()
+        try:
+            result = await queue.recheck(finding_id)
+        except TimeoutError as exc:
+            raise StarletteHTTPException(504, "Checking took too long. Please try again.") from exc
+        if result is None:
+            raise StarletteHTTPException(409, "This is already being checked. Please wait.")
+        return RecheckOut.model_validate(result)
+
+    @app.post("/v1/findings/{finding_id}/dismiss")
+    async def dismiss(
+        finding_id: str, body: DismissIn, request: Request, session: SessionDep
+    ) -> RecheckOut:
+        row = await finding_or_404(session, finding_id)
+        if row.severity == Severity.CRITICAL and body.reason != "false_positive":
+            # spec §7.6: serious problems can only be dismissed as false alarms
+            raise StarletteHTTPException(
+                422, "Serious problems can only be hidden if they are a false alarm."
+            )
+        row.status = FindingStatus.DISMISSED
+        row.dismissed_reason = body.reason
+        client_ip = request.client.host if request.client else None
+        session.add(
+            AuditLog(actor_ip=client_ip, action=f"finding.dismiss.{body.reason}", target=row.id)
+        )
+        scan = await session.get(Scan, row.scan_id)
+        assert scan is not None
+        await session.flush()
+        await regrade(session, scan, checks)
+        await session.commit()
+        return RecheckOut(result="still_present", grade=scan.grade, score=scan.score)
+
+    @app.post("/v1/findings/{finding_id}/restore")
+    async def restore(finding_id: str, request: Request, session: SessionDep) -> RecheckOut:
+        row = await finding_or_404(session, finding_id)
+        if row.status == FindingStatus.DISMISSED:
+            row.status = FindingStatus.OPEN
+            row.dismissed_reason = None
+            client_ip = request.client.host if request.client else None
+            session.add(AuditLog(actor_ip=client_ip, action="finding.restore", target=row.id))
+        scan = await session.get(Scan, row.scan_id)
+        assert scan is not None
+        await session.flush()
+        await regrade(session, scan, checks)
+        await session.commit()
+        return RecheckOut(result="still_present", grade=scan.grade, score=scan.score)
 
     return app
 

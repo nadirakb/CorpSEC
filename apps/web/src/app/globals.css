@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+/*
+ * CorpSEC look: an inspection certificate. Warm paper, ink-navy text, a seal for the grade.
+ * Severity is always shown with an icon and a word as well as a colour (WCAG 1.4.1).
+ */
+:root {
+  --paper: #f6f1e7;
+  --paper-raised: #fffcf6;
+  --ink: #16233b;
+  --ink-soft: #46536a;
+  --rule: #ddd3c1;
+  --accent: #1d5c4f;
+  --accent-ink: #ffffff;
+  --focus: #b4530f;
+
+  --sev-critical: #a3221b;
+  --sev-critical-bg: #fbe7e4;
+  --sev-high: #9a4a07;
+  --sev-high-bg: #fcefdc;
+  --sev-medium: #7a5d00;
+  --sev-medium-bg: #faf2d3;
+  --sev-low: #33547a;
+  --sev-low-bg: #e6eef8;
+  --sev-info: #4f5b6b;
+  --sev-info-bg: #eceef1;
+  --sev-pass: #1f6b45;
+  --sev-pass-bg: #e2f2e8;
+
+  --grade-a: #1f6b45;
+  --grade-b: #3c6e2f;
+  --grade-c: #8a5a00;
+  --grade-d: #a3461b;
+  --grade-f: #a3221b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121a28;
+    --paper-raised: #1a2436;
+    --ink: #eee8dc;
+    --ink-soft: #b5bccb;
+    --rule: #2e3a50;
+    --accent: #6fc2ad;
+    --accent-ink: #0d1b18;
+    --focus: #f0a35e;
+
+    --sev-critical: #ff9c94;
+    --sev-critical-bg: #3a1a1c;
+    --sev-high: #ffb870;
+    --sev-high-bg: #3a2614;
+    --sev-medium: #f0d36b;
+    --sev-medium-bg: #332c12;
+    --sev-low: #9cc2f0;
+    --sev-low-bg: #1a2a40;
+    --sev-info: #c2c9d4;
+    --sev-info-bg: #252d3a;
+    --sev-pass: #86d9a9;
+    --sev-pass-bg: #163225;
+
+    --grade-a: #86d9a9;
+    --grade-b: #b5d98a;
+    --grade-c: #f0c060;
+    --grade-d: #ffa070;
+    --grade-f: #ff9c94;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-raised: var(--paper-raised);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-public-sans);
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-public-sans), system-ui, sans-serif;
+  /* faint paper grain */
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 5%, transparent) 1px, transparent 1px);
+  background-size: 3px 3px;
+  min-height: 100dvh;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-variation-settings: "SOFT" 50, "WONK" 0;
+}
+
+@keyframes stamp-in {
+  0% { transform: scale(1.35) rotate(-14deg); opacity: 0; }
+  60% { transform: scale(0.96) rotate(-6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-8deg); opacity: 1; }
+}
+
+@keyframes rise {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.stamp { animation: stamp-in 600ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; transform: rotate(-8deg); }
+.rise { animation: rise 420ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp, .rise { animation: none; }
+  * { transition: none !important; }
+}

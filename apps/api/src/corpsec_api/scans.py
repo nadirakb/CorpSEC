@@ -1,16 +1,25 @@
-"""Run a queued scan and persist its result. Shared by the arq worker and tests."""
+"""Run scans and re-checks and persist their results. Shared by the arq worker and tests."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any, Literal
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from corpsec_api.db import FindingRow, Scan
-from corpsec_api.reporting import apply_grade, grade_findings
-from corpsec_scanner import Check, ScanOptions, ScanStatus, run_scan
-from corpsec_scanner.models import utcnow
+from corpsec_api.db import FindingCheck, FindingRow, Scan
+from corpsec_api.reporting import apply_grade, grade_findings, row_to_finding
+from corpsec_scanner import Check, ScanOptions, ScanStatus, Severity, run_scan
+from corpsec_scanner.engine import ProgressCallback
+from corpsec_scanner.models import CheckRunStatus, FindingStatus, utcnow
 from corpsec_scanner.target import ScanTarget
+
+RecheckResult = Literal["fixed", "still_present", "inconclusive"]
+
+
+def _target(scan: Scan) -> ScanTarget:
+    return ScanTarget(raw=scan.target, host=scan.host, registrable_domain=scan.registrable_domain)
 
 
 async def execute_scan(
@@ -18,6 +27,7 @@ async def execute_scan(
     scan_id: str,
     checks: Sequence[Check],
     options: ScanOptions | None = None,
+    on_progress: ProgressCallback | None = None,
 ) -> ScanStatus | None:
     async with sessions() as session:
         scan = await session.get(Scan, scan_id, with_for_update=True)
@@ -25,13 +35,13 @@ async def execute_scan(
             return None
         scan.status = ScanStatus.RUNNING
         scan.started_at = utcnow()
-        target = ScanTarget(
-            raw=scan.target, host=scan.host, registrable_domain=scan.registrable_domain
-        )
+        target = _target(scan)
         site_id = scan.site_id
         await session.commit()
 
-    result = await run_scan(target, checks, scan_id=scan_id, site_id=site_id, options=options)
+    result = await run_scan(
+        target, checks, scan_id=scan_id, site_id=site_id, options=options, on_progress=on_progress
+    )
 
     async with sessions() as session:
         scan = await session.get(Scan, scan_id)
@@ -65,3 +75,82 @@ async def execute_scan(
             )
         await session.commit()
     return result.status
+
+
+def with_dependencies(check_id: str, checks: Sequence[Check]) -> list[Check]:
+    """The check plus every check that produces facts it requires or uses."""
+    by_fact: dict[str, list[Check]] = {}
+    for c in checks:
+        for fact in c.provides:
+            by_fact.setdefault(fact, []).append(c)
+    by_id = {c.id: c for c in checks}
+    selected: dict[str, Check] = {}
+    stack = [by_id[check_id]]
+    while stack:
+        c = stack.pop()
+        if c.id in selected:
+            continue
+        selected[c.id] = c
+        for fact in c.requires | c.uses:
+            stack.extend(by_fact.get(fact, []))
+    return list(selected.values())
+
+
+async def regrade(session: AsyncSession, scan: Scan, checks: Sequence[Check]) -> None:
+    rows = (await session.scalars(select(FindingRow).where(FindingRow.scan_id == scan.id))).all()
+    apply_grade(scan, grade_findings([row_to_finding(r) for r in rows], checks))
+
+
+async def execute_recheck(
+    sessions: async_sessionmaker[AsyncSession],
+    finding_id: str,
+    checks: Sequence[Check],
+    options: ScanOptions | None = None,
+) -> dict[str, Any] | None:
+    """Re-run one finding's check (and the checks it depends on) against the live site."""
+    async with sessions() as session:
+        row = await session.get(FindingRow, finding_id)
+        if row is None:
+            return None
+        scan = await session.get(Scan, row.scan_id)
+        assert scan is not None
+        target = _target(scan)
+        check_id, host, key = row.check_id, row.host, row.dedupe_key
+
+    if check_id not in {c.id for c in checks}:
+        return {"result": "inconclusive", "detail": "check no longer exists"}
+    result = await run_scan(target, with_dependencies(check_id, checks), options=options)
+    run = next((r for r in result.check_runs if r.check_id == check_id), None)
+    same = [
+        f
+        for f in result.findings
+        if f.check_id == check_id and f.host == host and f.dedupe_key == key
+    ]
+    still = [f for f in same if f.severity not in (Severity.PASS, Severity.INFO)]
+
+    outcome: RecheckResult
+    if result.status == ScanStatus.FAILED or run is None or run.status != CheckRunStatus.OK:
+        outcome = "inconclusive"
+    elif still:
+        outcome = "still_present"
+    else:
+        outcome = "fixed"
+
+    async with sessions() as session:
+        row = await session.get(FindingRow, finding_id)
+        scan = await session.get(Scan, row.scan_id) if row else None
+        assert row is not None and scan is not None
+        now = utcnow()
+        if outcome == "fixed":
+            row.status = FindingStatus.FIXED
+            row.fixed_at = now
+        elif outcome == "still_present":
+            row.last_seen = now
+            row.evidence = still[0].evidence.model_dump(mode="json")
+            if row.status == FindingStatus.FIXED:
+                row.status, row.fixed_at = FindingStatus.OPEN, None
+        detail = {"error": result.error, "check_run": run.model_dump(mode="json") if run else None}
+        session.add(FindingCheck(finding_id=finding_id, result=outcome, detail=detail))
+        await regrade(session, scan, checks)
+        await session.commit()
+        return {"result": outcome, "grade": scan.grade, "score": scan.score}

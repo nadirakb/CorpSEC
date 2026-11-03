@@ -1,7 +1,7 @@
 check_id: TLS-005
 title: "Your site allows weak encryption"
 pass_title: "Your site only uses strong encryption"
-summary: "Your server still accepts weak encryption ({{item|an outdated type}}). Data sent this way can be cracked."
+summary: "Your server still accepts weak types of encryption. Data sent this way can be cracked."
 analogy: "It is like a safe with a lock that can be opened with a paper clip."
 why_it_matters:
   - "Someone who records the traffic may be able to read it later."
