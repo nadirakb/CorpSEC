@@ -1,0 +1,19 @@
+check_id: SW-009
+title: "Your WordPress theme has known security holes"
+pass_title: "No known security holes in your WordPress theme"
+summary: "The theme {{item|on your site}} (version {{version|unknown}}) has security holes that are publicly known. We found {{total|some}} in public lists."
+analogy: "It is like a shop front with a lock that burglars already know how to pick."
+why_it_matters:
+  - "A theme runs on every page, so a hole in it can affect your whole site."
+  - "Attackers scan for old themes automatically."
+fix:
+  default:
+    - "Make a backup of your site first."
+    - "In WordPress, go to Appearance, then Themes, and update the theme."
+    - "If no update is offered, ask the theme maker or switch to a theme that is still looked after."
+    - "Delete themes you don't use."
+    - "Press Check again."
+effort_minutes: 20
+who_can_fix: "You, your web designer, or whoever manages your WordPress site."
+technical: "{{item}} {{version}}: {{total}} known vulnerabilities (Wordfence Intelligence; see evidence for IDs, links and attribution)."
+variables: [version, total]

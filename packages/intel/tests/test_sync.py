@@ -281,3 +281,23 @@ async def test_wordfence_not_refetched_within_interval() -> None:
         snap, failed = await build_snapshot(client, stale, wordfence_key="k")
     assert calls == ["wf"] and "wordfence" in failed  # 429 -> keep previous data
     assert "wordpress-plugin:x" in snap.vulns
+
+
+async def test_sync_file_writes_snapshot_and_keeps_previous_on_failure(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from corpsec_intel.sync import sync_file
+    from corpsec_scanner.intel import load_snapshot
+
+    out = tmp_path / "intel.json"
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        failed = await sync_file(out, previous=out, client=client)  # no previous file yet
+    assert "cisa-kev" not in failed
+    assert load_snapshot(out).kev == {"CVE-2021-44228"}
+
+    def kev_down(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(503) if str(req.url) == KEV_URL else handler(req)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(kev_down)) as client:
+        failed = await sync_file(out, previous=out, client=client)
+    assert "cisa-kev" in failed
+    assert load_snapshot(out).kev == {"CVE-2021-44228"}  # yesterday's data kept
+    assert not (tmp_path / "intel.json.tmp").exists()

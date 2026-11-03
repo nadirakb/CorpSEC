@@ -11,7 +11,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://corpsec:corpsec@localhost:5432/corpsec"
     redis_url: str = "redis://localhost:6379/0"
     intel_path: str | None = None
-    """Snapshot written by ``corpsec-intel-sync``; reloaded when the file changes."""
+    """Snapshot written by ``corpsec-intel-sync``; reloaded when the file changes. The worker
+    refreshes it nightly."""
+    wordfence_api_key: str | None = None
+    """``CORPSEC_WORDFENCE_API_KEY``: WordPress vulnerabilities in the nightly refresh."""
 
     web_url: str = "http://localhost:3000"
     """Public address of the web app, used in emailed links. Its origin may make writes."""

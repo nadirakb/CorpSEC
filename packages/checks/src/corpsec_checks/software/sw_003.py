@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from corpsec_checks._common import FACT_FINGERPRINTS, observe
-from corpsec_checks.software._fingerprint import Fingerprint
+from corpsec_checks.software._fingerprint import ADDON_PREFIXES, Fingerprint
 from corpsec_checks.software._vulns import vuln_observation
 from corpsec_scanner import Check, Confidence, Observation, ScanContext, Severity, Stage
 
@@ -21,7 +21,7 @@ class KnownVulnerableVersion(Check):
         out: list[Observation] = []
         for fp in fps:
             # Spec §6.4: no exact version, no vulnerability finding.
-            if not fp.version or fp.product.startswith("wordpress-plugin:"):
+            if not fp.version or fp.product.startswith(ADDON_PREFIXES):
                 continue
             if fp.product not in ctx.intel.vulns:
                 continue

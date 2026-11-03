@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from corpsec_checks._common import FACT_FINGERPRINTS, FACT_PAGES, observe
-from corpsec_checks.software._fingerprint import fingerprint, platform
+from corpsec_checks.software._fingerprint import ADDON_PREFIXES, fingerprint, platform
 from corpsec_scanner import Check, Observation, ScanContext, Severity, Stage
 
 
@@ -30,7 +30,7 @@ class PlatformDetected(Check):
                 observed=[
                     {"product": f.product, "version": f.version, "source": f.source}
                     for f in fps
-                    if not f.product.startswith("wordpress-plugin:")
+                    if not f.product.startswith(ADDON_PREFIXES)
                 ],
                 context={"platform": cms} if cms else {},
             )

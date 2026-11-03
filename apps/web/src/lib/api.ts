@@ -91,6 +91,7 @@ export interface ActionResult {
 export interface Me {
   id: string;
   email: string;
+  weekly_digest: boolean;
 }
 
 export type OAuthProvider = "google" | "microsoft";
@@ -212,6 +213,12 @@ export const api = {
   verifyLink: (token: string) =>
     request<Me>("/auth/verify", { method: "POST", body: JSON.stringify({ token }) }),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
+  updateMe: (patch: { weekly_digest?: boolean }) =>
+    request<Me>("/me", { method: "PATCH", body: JSON.stringify(patch) }),
+  /** A plain link: the browser downloads the JSON file with the session cookie. */
+  exportUrl: `${BASE}/me/export`,
+  deleteAccount: (confirmEmail: string) =>
+    request<void>("/me", { method: "DELETE", body: JSON.stringify({ confirm_email: confirmEmail }) }),
   /** Sign-in providers the server has credentials for; buttons for the others stay hidden. */
   providers: () => request<{ providers: OAuthProvider[] }>("/auth/providers"),
   /** A full-page navigation, not a fetch: the API redirects to the provider and back. */

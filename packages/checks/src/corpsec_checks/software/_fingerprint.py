@@ -20,6 +20,8 @@ CMS_PRODUCTS = (
     "squarespace",
     "webflow",
 )
+ADDON_PREFIXES = ("wordpress-plugin:", "wordpress-theme:")
+"""Fingerprints of WordPress plugins/themes; matched by SW-004/SW-009, not SW-003."""
 VERSIONED_CMS = ("wordpress", "joomla", "drupal", "ghost")
 
 
@@ -66,6 +68,7 @@ _SERVER_IDS = {"apache": "apache-http-server", "microsoft-iis": "iis"}
 _POWERED_RE = re.compile(r"\b(PHP|ASP\.NET|Express)(?:/([\d.]+))?", re.I)
 _WP_CORE_ASSET_RE = re.compile(r"/wp-includes/.+\?(?:.*&)?ver=([\d.]+)")
 _WP_PLUGIN_RE = re.compile(r"/wp-content/plugins/([a-z0-9_\-]+)/")
+_WP_THEME_RE = re.compile(r"/wp-content/themes/([a-z0-9_\-]+)/")
 _DRUPAL_HEADER_RE = re.compile(r"Drupal\s*([\d.]+)?", re.I)
 
 
@@ -131,6 +134,16 @@ def fingerprint(pages: list[HttpResponse]) -> list[Fingerprint]:
                         ver,
                         Confidence.POSSIBLE,
                         "plugin asset path",
+                    )
+                )
+            if m := _WP_THEME_RE.search(url):
+                ver = parse_qs(urlsplit(url).query).get("ver", [None])[0]
+                add(
+                    Fingerprint(
+                        f"wordpress-theme:{m.group(1)}",
+                        ver,
+                        Confidence.POSSIBLE,
+                        "theme asset path",
                     )
                 )
     return list(found.values())

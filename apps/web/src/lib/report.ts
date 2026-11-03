@@ -65,7 +65,7 @@ export function fixFirst(scan: Scan): FindingSet[] {
 
 /** Human label for where a finding applies: "TLSv1.0", "/.env", "contact-form-7". */
 export function itemLabel(f: Finding): string {
-  return f.dedupe_key.replace(/^wordpress-plugin:/, "");
+  return f.dedupe_key.replace(/^wordpress-(plugin|theme):/, "");
 }
 
 const LETTERS: [number, string][] = [[90, "A"], [80, "B"], [65, "C"], [50, "D"]];

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Finding, Scan } from "./api";
-import { attributions, capApplied, fixFirst, gradeTone, groupFindings, stageStates } from "./report";
+import { attributions, capApplied, fixFirst, gradeTone, groupFindings, itemLabel, stageStates } from "./report";
 
 function finding(id: string, over: Partial<Finding> = {}): Finding {
   return {
@@ -110,5 +110,13 @@ describe("attributions", () => {
     const a = attributions(f);
     expect(a.records).toEqual(["https://www.wordfence.com/threat-intel/x"]);
     expect(a.holders.map(([k]) => k)).toEqual(["defiant"]);
+  });
+});
+
+describe("itemLabel", () => {
+  it("drops the WordPress add-on prefix", () => {
+    expect(itemLabel(finding("a", { dedupe_key: "wordpress-plugin:contact-form-7" }))).toBe("contact-form-7");
+    expect(itemLabel(finding("b", { dedupe_key: "wordpress-theme:astra" }))).toBe("astra");
+    expect(itemLabel(finding("c", { dedupe_key: "TLSv1.0" }))).toBe("TLSv1.0");
   });
 });

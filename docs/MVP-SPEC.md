@@ -120,6 +120,8 @@ Each finding has a **"I fixed it — check again"** button that re-runs only tha
 - Email alert when: grade drops, a new Critical/Important finding appears, certificate expires in ≤ 14 days, domain expires in ≤ 30 days.
 - Weekly digest email is opt-in.
 
+*Implemented (gap closing):* the digest is a Monday-morning email with each site's latest grade and open-problem count, switched on from the Account page (`PATCH /v1/me {"weekly_digest": true}`) and sent at most once a week per person.
+
 ---
 
 ## 5. Scan scope and safety envelope (MVP)
@@ -219,7 +221,7 @@ Nmap-style fingerprinting adapted to the web: identify technologies and versions
 
 Data sources: NVD CVE API 2.0, CISA KEV catalog, OSV.dev, WordPress.org API (core/plugin latest versions), Wordfence Intelligence / WPScan vulnerability DB (license to confirm, §14), retire.js repository (for JS libs). Synced nightly into a local snapshot; scans never call third-party APIs inline.
 
-*Implemented (M1):* the snapshot is a JSON file written atomically by `corpsec-intel-sync` (packages/intel) rather than database tables, so scan workers need no database credentials (§15). Sources wired up: WordPress.org (latest core), endoflife.date (PHP, nginx, Apache, WordPress, Drupal, Joomla release lines), retire.js, CISA KEV, IANA RDAP bootstrap, and **Wordfence Intelligence v3 production feed** for WordPress core and plugin vulnerabilities (decided in §17 Q1). Wordfence needs an API key from a free Wordfence.com account (`CORPSEC_WORDFENCE_API_KEY`); without it that source is skipped. Themes and "informational" records are not imported yet.
+*Implemented (M1):* the snapshot is a JSON file written atomically by `corpsec-intel-sync` (packages/intel) rather than database tables, so scan workers need no database credentials (§15). Sources wired up: WordPress.org (latest core), endoflife.date (PHP, nginx, Apache, WordPress, Drupal, Joomla release lines), retire.js, CISA KEV, IANA RDAP bootstrap, and **Wordfence Intelligence v3 production feed** for WordPress core and plugin vulnerabilities (decided in §17 Q1). Wordfence needs an API key from a free Wordfence.com account (`CORPSEC_WORDFENCE_API_KEY`); without it that source is skipped. "Informational" records are not imported; themes are matched by SW-009 (added after M5).
 
 **Attribution (licence requirement, applies to M3 UI and M5 reports):** Wordfence data is licensed by Defiant on condition that every copy includes a hyperlink to the vulnerability record and reproduces Defiant's copyright notice and licence; CVE data additionally requires MITRE's notice to be shown to end users. Each finding's evidence therefore carries `vulnerabilities[].url`, `vulnerabilities[].copyright` and an `attributions` map (notice, licence, licence URL). The results page and PDF must display them next to the finding.
 
@@ -619,9 +621,9 @@ Commercial tools (Burp Suite, Qualys, Acunetix/Invicti) are used **only as produ
 | Speed | p50 full scan ≤ 45 s, p95 ≤ 120 s; first progress event ≤ 2 s |
 | Availability | 99.5 % monthly for web/API (MVP) |
 | Scale (MVP) | 2,000 scans/day, 500 monitored sites |
-| Security of CorpSEC itself | OWASP ASVS L2 target; workers have no DB credentials (results via API/queue); secrets in a vault; dependency scanning in CI; CorpSEC scans itself weekly (dogfooding, must be A+) |
+| Security of CorpSEC itself | OWASP ASVS L2 target; workers have no DB credentials (results via API/queue); secrets in a vault; dependency scanning in CI; CorpSEC scans itself weekly (dogfooding, must be A+). *Implemented:* the web app sends a per-request nonce CSP (`script-src 'nonce-…' 'strict-dynamic'`, no `unsafe-inline` for scripts or style elements) from `apps/web/src/proxy.ts`; pages render per request so every script carries the nonce |
 | Accessibility | WCAG 2.2 AA; grade never conveyed by colour alone |
-| Privacy | GDPR: export & delete account; no third-party trackers on result pages |
+| Privacy | GDPR: export & delete account; no third-party trackers on result pages. *Implemented:* `GET /v1/me/export` (JSON download of account, sites, scans, findings, alerts, share links and the person's activity log) and `DELETE /v1/me` (typed email confirmation; removes the account, its sites and their scans so old report links stop working) on the Account page |
 | i18n | All strings externalized; RTL-safe layout |
 | Testability | Every check has ≥ 1 positive and ≥ 1 negative fixture test; CI runs the whole catalog against a local "vulnerable lab" (docker-compose of intentionally misconfigured nginx/WordPress/DNS) |
 

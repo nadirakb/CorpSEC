@@ -16,7 +16,8 @@ COPY packages packages
 COPY apps/api apps/api
 RUN uv sync --frozen --no-dev --package corpsec-api
 
-RUN useradd --system --uid 10001 corpsec
+RUN useradd --system --uid 10001 corpsec \
+    && mkdir -p /data && chown corpsec /data  # intel snapshot volume, written by the worker
 USER corpsec
 WORKDIR /app/apps/api
 EXPOSE 8000

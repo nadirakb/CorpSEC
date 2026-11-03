@@ -217,3 +217,40 @@ def test_vulnerabilities_listed_worst_first() -> None:
         "CVE-2",
         "CVE-1",
     ]
+
+
+async def test_wordpress_theme_vulnerability(scan: Scan) -> None:
+    from corpsec_checks.software.sw_009 import VulnerableThemes
+
+    page = WP_PAGE.replace(
+        "</head>",
+        '<link rel="stylesheet" href="/wp-content/themes/astra/style.css?ver=5.8.1" /></head>',
+    )
+    style = httpx.Response(
+        200, text="/*\nTheme Name: Astra\nVersion: 3.6.1\nAuthor: Brainstorm Force\n*/"
+    )
+    site = FakeSite(
+        {HOME: html(page), "https://example.com/wp-content/themes/astra/style.css": style}
+    )
+    intel = INTEL.model_copy(
+        update={
+            "vulns": {
+                **INTEL.vulns,
+                "wordpress-theme:astra": [
+                    Vulnerability(
+                        ids=["CVE-2021-0001"],
+                        cvss=6.4,
+                        severity="medium",
+                        ranges=[VersionRange(last_affected="3.7.3")],
+                    )
+                ],
+            }
+        }
+    )
+    checks = [HttpsReachable(), Crawler(), PlatformDetected(), VulnerableThemes()]
+    result = await scan(checks, site, intel=intel)
+    [theme] = [f for f in result.findings if f.check_id == "SW-009"]
+    assert (theme.severity, theme.confidence) == (Severity.HIGH, Confidence.LIKELY)
+    assert theme.evidence.observed["version"] == "3.6.1"  # from style.css, not ?ver=
+    sw1 = next(f for f in result.findings if f.check_id == "SW-001")
+    assert all("theme" not in p["product"] for p in sw1.evidence.observed)
