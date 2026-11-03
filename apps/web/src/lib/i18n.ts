@@ -216,6 +216,19 @@ export const en = {
     verifying: "Signing you in…",
     failed: "That link didn't work.",
     newLink: "Ask for a new link",
+    continueWith: {
+      google: "Continue with Google",
+      microsoft: "Continue with Microsoft",
+    } as Record<string, string>,
+    or: "or use your email",
+    oauthErrors: {
+      oauth_cancelled: "Sign-in was cancelled. You can try again or use your email instead.",
+      oauth_expired: "That sign-in took too long or was started in another browser. Please try again.",
+      oauth_unverified:
+        "That account didn't confirm your email address, so we can't use it to sign you in. Please use your email instead.",
+      oauth_failed: "We couldn't sign you in with that account. Please try again or use your email.",
+      account_deleted: "This account was deleted.",
+    } as Record<string, string>,
   },
   dashboard: {
     title: "My sites",

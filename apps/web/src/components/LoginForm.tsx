@@ -1,9 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, type OAuthProvider } from "@/lib/api";
 import { t } from "@/lib/i18n";
 
 export function LoginForm() {
@@ -12,7 +12,22 @@ export function LoginForm() {
   const inputId = useId();
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
-  const [error, setError] = useState<string | null>(null);
+  const oauthError = params.get("error");
+  const [error, setError] = useState<string | null>(
+    oauthError ? (t.login.oauthErrors[oauthError] ?? t.errors.generic) : null,
+  );
+  const [providers, setProviders] = useState<OAuthProvider[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    api.providers().then(
+      (r) => active && setProviders(r.providers),
+      () => active && setProviders([]), // email sign-in still works
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,6 +58,20 @@ export function LoginForm() {
     <form onSubmit={submit} className="rise">
       <h1 className="font-display text-4xl font-semibold">{t.login.title}</h1>
       <p className="mt-3 text-lg text-ink-soft">{t.login.lede}</p>
+      {providers.length > 0 && (
+        <div className="mt-8 flex flex-col gap-3">
+          {providers.map((p) => (
+            <a
+              key={p}
+              href={api.oauthStartUrl(p, next)}
+              className="flex min-h-14 w-full items-center justify-center rounded-xl border-2 border-rule bg-raised px-6 text-lg font-semibold hover:border-accent"
+            >
+              {t.login.continueWith[p]}
+            </a>
+          ))}
+          <p className="mt-3 text-center text-ink-soft">{t.login.or}</p>
+        </div>
+      )}
       <label htmlFor={inputId} className="mt-8 mb-2 block font-semibold">
         {t.login.label}
       </label>

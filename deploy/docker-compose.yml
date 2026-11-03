@@ -18,6 +18,12 @@ x-app: &app
     CORPSEC_SMTP_HOST: mailpit
     CORPSEC_SMTP_PORT: "1025"
     CORPSEC_SMTP_STARTTLS: "false"
+    # Optional: Sign in with Google / Microsoft (see README). Put them in deploy/.env (gitignored).
+    CORPSEC_GOOGLE_CLIENT_ID: ${CORPSEC_GOOGLE_CLIENT_ID:-}
+    CORPSEC_GOOGLE_CLIENT_SECRET: ${CORPSEC_GOOGLE_CLIENT_SECRET:-}
+    CORPSEC_MICROSOFT_CLIENT_ID: ${CORPSEC_MICROSOFT_CLIENT_ID:-}
+    CORPSEC_MICROSOFT_CLIENT_SECRET: ${CORPSEC_MICROSOFT_CLIENT_SECRET:-}
+    CORPSEC_MICROSOFT_TENANT: ${CORPSEC_MICROSOFT_TENANT:-common}
     # Only the web container (on the compose network) may tell the API the client address;
     # it passes on what Caddy set. Change CORPSEC_SECRET_KEY for anything but local testing.
     CORPSEC_TRUSTED_PROXIES: '["172.16.0.0/12", "127.0.0.1/32"]'
