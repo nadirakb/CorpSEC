@@ -12,10 +12,12 @@ type Props = {
   /** Findings of one check with the same status, e.g. TLS 1.0 and TLS 1.1 accepted. */
   findings: Finding[];
   defaultOpen?: boolean;
+  /** False for read-only viewers (shared links). */
+  canAct?: boolean;
   onChanged: () => Promise<void> | void;
 };
 
-export function FindingCard({ findings, defaultOpen = false, onChanged }: Props) {
+export function FindingCard({ findings, defaultOpen = false, canAct = true, onChanged }: Props) {
   const finding = findings[0];
   const e = finding.explanation;
   const items = findings.map(itemLabel).filter(Boolean);
@@ -59,7 +61,7 @@ export function FindingCard({ findings, defaultOpen = false, onChanged }: Props)
       </h3>
 
       <div id={bodyId} hidden={!open} className="space-y-6 px-5 pb-6">
-        <Section title={t.finding.whatIsIt}>
+        {e.summary && <Section title={t.finding.whatIsIt}>
           <p>{e.summary}</p>
           {items.length > 0 && problem && (
             <p className="mt-3">
@@ -78,9 +80,9 @@ export function FindingCard({ findings, defaultOpen = false, onChanged }: Props)
               {e.analogy}
             </p>
           )}
-        </Section>
+        </Section>}
 
-        {e.why_it_matters.length > 0 && problem && (
+        {e.why_it_matters.length > 0 && (
           <Section title={t.finding.why}>
             <ul className="list-disc space-y-1 pl-5">
               {e.why_it_matters.map((w) => (
@@ -131,7 +133,7 @@ export function FindingCard({ findings, defaultOpen = false, onChanged }: Props)
           <Technical key={f.id} finding={f} label={findings.length > 1 ? itemLabel(f) : undefined} />
         ))}
 
-        {problem && <Actions findings={findings} onChanged={onChanged} />}
+        {problem && canAct && <Actions findings={findings} onChanged={onChanged} />}
       </div>
     </article>
   );

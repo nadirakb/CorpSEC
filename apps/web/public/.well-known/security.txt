@@ -1,0 +1,4 @@
+Contact: mailto:security@corpsec.app
+Expires: 2027-11-01T00:00:00Z
+Preferred-Languages: en
+Policy: https://corpsec.app/bot

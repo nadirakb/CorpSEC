@@ -51,6 +51,10 @@ export interface Scan {
   id: string;
   /** Set for scans of a monitored site (owner-only). */
   site_id: string | null;
+  /** Exposed-file locations and contents are hidden until the viewer proves ownership. */
+  redacted: boolean;
+  /** Whether this viewer may re-check or hide findings (false for shared read-only links). */
+  can_act: boolean;
   target: string;
   host: string;
   status: ScanStatus;
@@ -167,7 +171,22 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ target }),
     }),
-  getScan: (id: string) => request<Scan>(`/scans/${encodeURIComponent(id)}`),
+  getScan: (id: string, share?: string | null) =>
+    request<Scan>(`/scans/${encodeURIComponent(id)}${share ? `?share=${encodeURIComponent(share)}` : ""}`),
+  shareScan: (id: string, email: string, note: string) =>
+    request<{ status: string }>(`/scans/${encodeURIComponent(id)}/share`, {
+      method: "POST",
+      body: JSON.stringify({ email, note: note || null }),
+    }),
+  optoutInfo: (domain: string) =>
+    request<{ domain: string; txt_name: string; txt_value: string; opted_out: boolean }>(
+      `/optout/${encodeURIComponent(domain)}`,
+    ),
+  optout: (domain: string) =>
+    request<{ domain: string; opted_out: boolean }>("/optout", {
+      method: "POST",
+      body: JSON.stringify({ domain }),
+    }),
   eventsUrl: (id: string) => `${BASE}/scans/${encodeURIComponent(id)}/events`,
   recheck: (findingId: string) =>
     request<ActionResult>(`/findings/${encodeURIComponent(findingId)}/recheck`, {

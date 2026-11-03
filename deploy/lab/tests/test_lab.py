@@ -149,3 +149,12 @@ async def test_hardened_site_is_clean() -> None:
     report = lab_grade(result)
     assert (report.letter, report.score, report.fix_first) == ("A+", 100, [])
     assert_all_explained(result)
+
+
+async def test_corpsec_itself_scores_a_plus() -> None:
+    """Spec §15: CorpSEC's own production web app, served the recommended way, gets A+."""
+    result = await lab_scan("corpsec-lab-self.com")
+    assert result.status == ScanStatus.COMPLETED, [r for r in result.check_runs if r.detail]
+    assert {cid for cid, sev in problems(result) if sev != Severity.INFO} == set()
+    report = lab_grade(result)
+    assert (report.letter, report.score) == ("A+", 100)

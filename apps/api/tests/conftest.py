@@ -44,8 +44,8 @@ async def sessions(migrated_db: str) -> AsyncIterator[async_sessionmaker[AsyncSe
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "TRUNCATE alerts, audit_log, finding_checks, findings, scans, sites, "
-                "login_tokens, user_sessions, user_identities, oauth_flows, users "
+                "TRUNCATE alerts, audit_log, finding_checks, findings, optouts, share_links, "
+                "scans, sites, login_tokens, user_sessions, user_identities, oauth_flows, users "
                 "RESTART IDENTITY CASCADE"
             )
         )

@@ -1,6 +1,9 @@
 // Pure helpers that shape a scan for the results page. Unit-tested in report.test.ts.
 import type { Finding, Scan, Severity, Stage } from "./api";
 
+/** Same text the API puts in redacted evidence (corpsec_api.redaction.HIDDEN). */
+export const REDACTED_MARK = "Hidden until you verify that you own this site.";
+
 export const STAGES: Stage[] = ["connection", "encryption", "website", "software", "email"];
 export const PROBLEM_SEVERITIES: Severity[] = ["critical", "high", "medium", "low"];
 export const GROUP_ORDER = ["critical", "high", "medium", "low", "info", "fixed", "dismissed", "pass"];

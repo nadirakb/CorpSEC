@@ -14,7 +14,7 @@ lab network (it is `internal`).
 
 ```bash
 docker compose -f deploy/lab/compose.yml build
-docker compose -f deploy/lab/compose.yml up -d --wait dns bad good
+docker compose -f deploy/lab/compose.yml up -d --wait dns bad good self
 docker compose -f deploy/lab/compose.yml run --rm runner
 docker compose -f deploy/lab/compose.yml down -v
 ```

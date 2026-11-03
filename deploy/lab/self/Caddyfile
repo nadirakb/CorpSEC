@@ -1,0 +1,17 @@
+{
+	# lab: certificates come from certgen, not ACME
+	auto_https disable_certs
+}
+
+www.corpsec-lab-self.com {
+	tls /certs/self.crt /certs/self.key
+	redir https://corpsec-lab-self.com{uri} permanent
+}
+
+corpsec-lab-self.com {
+	tls /certs/self.crt /certs/self.key
+	header -Server
+	reverse_proxy self-web:3000 {
+		flush_interval -1
+	}
+}

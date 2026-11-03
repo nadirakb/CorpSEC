@@ -27,6 +27,14 @@ make_cert(
     issuer_cert=ca_cert,
     issuer_key=ca_key,  # type: ignore[arg-type]
 )
+# CorpSEC itself (spec §15: must score A+): lab-CA signed, like the hardened site.
+make_cert(
+    ["corpsec-lab-self.com", "www.corpsec-lab-self.com"],
+    directory=out,
+    name="self",
+    issuer_cert=ca_cert,
+    issuer_key=ca_key,  # type: ignore[arg-type]
+)
 # Broken site: self-signed, RSA-1024, expires in 2 days. www is listed so DNS-004 sees it.
 make_cert(
     ["corpsec-lab-bad.com", "www.corpsec-lab-bad.com"],

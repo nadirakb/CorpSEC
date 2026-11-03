@@ -204,6 +204,28 @@ class FindingCheck(Base):
     ran_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class OptOut(TimestampMixin, Base):
+    """Domains whose owners asked CorpSEC never to scan them (proved by a DNS TXT record)."""
+
+    __tablename__ = "optouts"
+
+    domain: Mapped[str] = mapped_column(String(253), primary_key=True)
+    verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ShareLink(TimestampMixin, Base):
+    """Read-only access to a private report, e.g. for the owner's IT person (spec §7.5)."""
+
+    __tablename__ = "share_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scan_id: Mapped[str] = mapped_column(ForeignKey("scans.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    recipient: Mapped[str] = mapped_column(String(320))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
 
