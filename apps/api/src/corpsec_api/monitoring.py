@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from corpsec_api import emails
 from corpsec_api.db import Alert, FindingRow, Scan, Site, User
 from corpsec_api.mailer import Mail, Mailer
+from corpsec_api.policy import is_opted_out
 from corpsec_api.reporting import row_to_finding
 from corpsec_api.scans import new_scan, with_dependencies
 from corpsec_api.settings import Settings
@@ -139,6 +140,9 @@ async def schedule_due_scans(
             )
         ).all()
         for site in sites:
+            if await is_opted_out(session, site.domain):
+                site.next_scan_at = now + SCAN_INTERVAL
+                continue
             result = await check_ownership(
                 site.domain,
                 site.verification_token or "",

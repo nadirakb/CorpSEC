@@ -44,7 +44,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           {children}
         </main>
         <footer className="mx-auto max-w-5xl border-t border-rule px-5 py-8 text-sm text-ink-soft sm:px-8">
-          {t.footer.responsible}
+          <p>{t.footer.responsible}</p>
+          <nav aria-label="Footer" className="mt-3 flex flex-wrap gap-x-6 gap-y-2 font-semibold">
+            <Link href="/bot" className="underline-offset-4 hover:underline">{t.footer.links.bot}</Link>
+            <Link href="/privacy" className="underline-offset-4 hover:underline">{t.footer.links.privacy}</Link>
+            <Link href="/terms" className="underline-offset-4 hover:underline">{t.footer.links.terms}</Link>
+          </nav>
         </footer>
       </body>
     </html>

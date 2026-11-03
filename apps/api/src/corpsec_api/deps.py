@@ -4,6 +4,7 @@ No ``from __future__ import annotations``: FastAPI resolves these annotations at
 """
 
 import hashlib
+import ipaddress
 from collections.abc import AsyncIterator
 from datetime import timedelta
 from typing import Annotated
@@ -82,4 +83,26 @@ CurrentUser = Annotated[User, Depends(current_user)]
 
 
 def client_ip(request: Request) -> str | None:
-    return request.client.host if request.client else None
+    """The visitor's address. X-Forwarded-For is only believed when the request comes from
+    a configured proxy, and only its last entry (the one that proxy added or overwrote)."""
+    peer = request.client.host if request.client else None
+    settings: Settings = request.app.state.settings
+    if peer is None or not _is_trusted(peer, settings.trusted_proxies):
+        return peer
+    forwarded = request.headers.get("x-forwarded-for")
+    if not forwarded:
+        return peer
+    candidate = forwarded.split(",")[-1].strip()
+    try:
+        ipaddress.ip_address(candidate)
+    except ValueError:
+        return peer
+    return candidate
+
+
+def _is_trusted(address: str, networks: list[str]) -> bool:
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        return False
+    return any(ip in ipaddress.ip_network(n, strict=False) for n in networks)

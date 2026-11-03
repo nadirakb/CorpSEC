@@ -4,6 +4,9 @@ corpsec-lab-bad.com {
 corpsec-lab-good.com {
     file /etc/coredns/corpsec-lab-good.com.zone
 }
+corpsec-lab-self.com {
+    file /etc/coredns/corpsec-lab-self.com.zone
+}
 # Empty zone so the dangling CNAME target returns NXDOMAIN (as a deleted Azure app would).
 azurewebsites.net {
     file /etc/coredns/azurewebsites.net.zone

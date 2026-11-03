@@ -6,7 +6,7 @@ CorpSEC checks a website or domain and returns an A–F grade, the three things 
 
 It is inspired by professional tools such as OWASP ZAP, Nmap, OpenVAS, Burp Suite, Qualys and Acunetix, but is built for small businesses, freelancers, schools and NGOs rather than security specialists.
 
-> **Status:** pre-alpha — milestone M4 (accounts & monitoring). Sign in with an email link, add and verify your sites, get weekly checks and email alerts when something gets worse.
+> **Status:** pre-alpha — MVP milestones M0–M5 done. Scan in the browser, read an A–F report in plain language, verify and monitor your sites, share or print reports. Rate limits, redaction and opt-out protect the people whose sites get scanned.
 
 ## What the MVP checks
 
@@ -32,7 +32,7 @@ Requires [uv](https://docs.astral.sh/uv/) and Docker.
 uv sync                                    # install workspace + dev tools
 uv run corpsec-intel-sync --out intel.json # fetch vulnerability/product data (optional; see below)
 uv run corpsec-scan example.com --intel intel.json   # scan from the command line, prints JSON
-docker compose -f deploy/docker-compose.yml up --build   # Postgres, Redis, API (:8000), worker, web (:3000), Mailpit (:8025)
+docker compose -f deploy/docker-compose.yml up --build   # front proxy (:8088), web (:3000), API (:8000), worker, Postgres, Redis, Mailpit (:8025)
 ```
 
 ```bash
@@ -50,6 +50,15 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy
 ### Email in development
 
 The compose stack sends all email (sign-in links, alerts) to [Mailpit](https://mailpit.axllent.org/). Open http://localhost:8025 to read it. For real delivery set `CORPSEC_SMTP_HOST`, `CORPSEC_SMTP_PORT`, `CORPSEC_SMTP_USERNAME`, `CORPSEC_SMTP_PASSWORD` and `CORPSEC_MAIL_FROM`; set `CORPSEC_WEB_URL` to the public address of the web app so links point to it.
+
+### Running in production
+
+- Put CorpSEC behind a reverse proxy that **overwrites** `X-Forwarded-For` with the real client address (the included [Caddyfile](deploy/Caddyfile) does). Rate limits depend on it: the Next.js rewrite forwards whatever client header it receives and adds none of its own.
+- `CORPSEC_TRUSTED_PROXIES`: JSON list of networks allowed to tell the API the client address (the web app's network).
+- `CORPSEC_WEB_URL`: the public address; `CORPSEC_EXTRA_ORIGINS` for any other address the web app is served from. Writes from other origins are refused.
+- `CORPSEC_SECRET_KEY`: long random value (signs opt-out records). The API logs a warning if it's left at the development default.
+- Rate limits (`CORPSEC_ANON_SCANS_PER_HOUR`, `CORPSEC_USER_SCANS_PER_DAY`, `CORPSEC_MAX_SITES_PER_USER`, …) are shared across API processes through Redis.
+- The privacy page and terms are drafts and must be reviewed by a lawyer; `security@corpsec.app` in `apps/web/public/.well-known/security.txt` is a placeholder.
 
 ### WordPress vulnerability data (Wordfence)
 
@@ -89,7 +98,7 @@ Vulnerable lab (what CI runs):
 
 ```bash
 docker compose -f deploy/lab/compose.yml build
-docker compose -f deploy/lab/compose.yml up -d --wait dns bad good
+docker compose -f deploy/lab/compose.yml up -d --wait dns bad good self
 docker compose -f deploy/lab/compose.yml run --rm runner
 docker compose -f deploy/lab/compose.yml down -v
 ```

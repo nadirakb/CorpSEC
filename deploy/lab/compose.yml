@@ -53,6 +53,25 @@ services:
     networks:
       lab: { ipv4_address: 172.30.0.20 }
 
+  # CorpSEC's own production web image behind Caddy, scanned like any customer site.
+  self-web:
+    build:
+      context: ../..
+      dockerfile: deploy/web.Dockerfile
+    image: corpsec-web:lab
+    networks: [lab]
+
+  self:
+    image: caddy:2.8-alpine
+    volumes:
+      - ./self/Caddyfile:/etc/caddy/Caddyfile:ro
+      - certs:/certs:ro
+    depends_on:
+      self-web: { condition: service_started }
+      certgen: { condition: service_completed_successfully }
+    networks:
+      lab: { ipv4_address: 172.30.0.30 }
+
   runner:
     <<: *runner
     command: ["pytest", "-v", "deploy/lab/tests"]
@@ -61,6 +80,6 @@ services:
       CORPSEC_LAB_DNS: 172.30.0.53
       CORPSEC_LAB_CA: /certs/ca.crt
     volumes: [certs:/certs:ro]
-    depends_on: [dns, bad, good]
+    depends_on: [dns, bad, good, self]
     networks:
       lab: { ipv4_address: 172.30.0.100 }

@@ -1,5 +1,6 @@
 # Local development stack: docker compose -f deploy/docker-compose.yml up --build
-# Web app: http://localhost:3000  API: http://localhost:8000  Emails: http://localhost:8025
+# Through the front proxy (as in production): http://localhost:8088
+# Web app directly: http://localhost:3000  API: http://localhost:8000  Emails: http://localhost:8025
 name: corpsec
 
 x-app: &app
@@ -11,11 +12,16 @@ x-app: &app
     CORPSEC_DATABASE_URL: postgresql+asyncpg://corpsec:corpsec@postgres:5432/corpsec
     CORPSEC_REDIS_URL: redis://redis:6379/0
     CORPSEC_INTEL_PATH: /data/intel.json
-    CORPSEC_WEB_URL: http://localhost:3000
+    CORPSEC_WEB_URL: http://localhost:8088
+    CORPSEC_EXTRA_ORIGINS: '["http://localhost:3000"]'
     # Development mail catcher: read sign-in links and alerts at http://localhost:8025
     CORPSEC_SMTP_HOST: mailpit
     CORPSEC_SMTP_PORT: "1025"
     CORPSEC_SMTP_STARTTLS: "false"
+    # Only the web container (on the compose network) may tell the API the client address;
+    # it passes on what Caddy set. Change CORPSEC_SECRET_KEY for anything but local testing.
+    CORPSEC_TRUSTED_PROXIES: '["172.16.0.0/12", "127.0.0.1/32"]'
+    CORPSEC_SECRET_KEY: dev-only-change-me
   volumes:
     - intel:/data
 
@@ -86,6 +92,12 @@ services:
     image: corpsec-web:dev
     ports: ["127.0.0.1:3000:3000"]
     depends_on: [api]
+
+  proxy:
+    image: caddy:2.8-alpine
+    ports: ["127.0.0.1:8088:8080"]
+    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro]
+    depends_on: [web]
 
 volumes:
   pgdata:

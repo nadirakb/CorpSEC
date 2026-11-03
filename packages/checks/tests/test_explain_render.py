@@ -61,6 +61,7 @@ def test_pass_has_no_fix_steps() -> None:
     e = explain(finding("HDR-001", severity=Severity.PASS), SiteContext("a.az", "a.az"))
     assert e is not None
     assert e.title == "Your site limits which scripts may run" and e.fix_steps == []
+    assert e.summary == "" and e.analogy is None  # no problem description on a pass
 
 
 def test_site_context_from_findings() -> None:

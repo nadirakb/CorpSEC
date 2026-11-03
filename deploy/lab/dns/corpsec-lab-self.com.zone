@@ -1,0 +1,12 @@
+$ORIGIN corpsec-lab-self.com.
+$TTL 60
+@   IN SOA ns.corpsec-lab-self.com. admin.corpsec-lab-self.com. 1 3600 600 86400 60
+@   IN NS  ns
+ns  IN A   172.30.0.53
+@   IN A   172.30.0.30
+www IN A   172.30.0.30
+; Sends no email from this domain: say so, so nobody can spoof it.
+@   IN TXT "v=spf1 -all"
+_dmarc IN TXT "v=DMARC1; p=reject"
+@   IN CAA 0 issue "letsencrypt.org"
+@   IN DS  2371 13 2 C988EC423E3880EB8DD8A46FE06CA230EE23F35B578D8E0A7CAB4A1A1DC6E3E5

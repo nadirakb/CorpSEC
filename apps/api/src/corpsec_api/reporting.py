@@ -6,6 +6,7 @@ from collections.abc import Callable, Sequence
 from typing import Any
 
 from corpsec_api.db import FindingRow, Scan
+from corpsec_api.redaction import redact
 from corpsec_checks.explain import Explanation, SiteContext, explain, template_for
 from corpsec_grader import GradeReport, grade
 from corpsec_scanner import Check
@@ -70,9 +71,11 @@ def row_to_finding(row: FindingRow) -> Finding:
 
 
 def explained_findings(
-    scan: Scan, rows: Sequence[FindingRow], lang: str = "en"
+    scan: Scan, rows: Sequence[FindingRow], lang: str = "en", *, redacted: bool = False
 ) -> list[tuple[Finding, Explanation | None]]:
     findings = [row_to_finding(r) for r in rows]
+    if redacted:
+        findings = [redact(f) for f in findings]
     site = SiteContext.from_findings(scan.registrable_domain, scan.host, findings)
     findings.sort(key=lambda f: (_SEVERITY_ORDER[f.severity], f.check_id, f.dedupe_key))
     return [(f, explain(f, site, lang)) for f in findings]

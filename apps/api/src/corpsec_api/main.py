@@ -6,9 +6,11 @@ aliases defined inside ``create_app`` at runtime.
 
 import asyncio
 import json
+import logging
+import secrets
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
@@ -17,24 +19,34 @@ from arq.connections import RedisSettings
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from corpsec_api import auth, sites
-from corpsec_api.db import AuditLog, FindingRow, Scan, Site, User, make_engine
-from corpsec_api.deps import OptionalUser, QueueDep, SessionDep
+from corpsec_api import auth, emails, optout, sites
+from corpsec_api.db import AuditLog, FindingRow, Scan, ShareLink, Site, User, make_engine
+from corpsec_api.deps import (
+    CurrentUser,
+    MailerDep,
+    OptionalUser,
+    QueueDep,
+    SessionDep,
+    client_ip,
+    token_hash,
+)
 from corpsec_api.mailer import Mailer, make_mailer
+from corpsec_api.policy import ScanRefusedError, check_target
 from corpsec_api.progress import Event, ProgressBus, RedisProgressBus
 from corpsec_api.queue import ArqScanQueue, ScanQueue
+from corpsec_api.ratelimit import MemoryRateLimiter, RateLimiter, RedisRateLimiter
 from corpsec_api.reporting import explained_findings
 from corpsec_api.scans import new_scan, regrade
-from corpsec_api.settings import Settings, get_settings
+from corpsec_api.settings import DEV_SECRET, Settings, get_settings
 from corpsec_checks.explain import Explanation, load_templates
 from corpsec_scanner import InvalidTargetError, ScanStatus, Severity, load_checks, normalize_target
-from corpsec_scanner.models import FindingStatus
+from corpsec_scanner.models import FindingStatus, utcnow
 
 
 class ScanCreate(BaseModel):
@@ -73,6 +85,11 @@ class StageGradeOut(BaseModel):
 class ScanOut(BaseModel):
     id: str
     site_id: str | None
+    redacted: bool
+    """True when exposed-file locations and contents are hidden (viewer hasn't proved
+    ownership of the site, spec §10.2)."""
+    can_act: bool
+    """Whether this viewer may re-check or hide findings."""
     """Set for scans of a monitored site; those are visible to the site owner only."""
     target: str
     host: str
@@ -89,6 +106,11 @@ class ScanOut(BaseModel):
     check_runs: list[dict[str, Any]]
     findings: list[FindingOut]
     """Sorted by severity (critical first; passes last)."""
+
+
+class ShareIn(BaseModel):
+    email: EmailStr
+    note: str | None = Field(default=None, max_length=1000)
 
 
 class DismissIn(BaseModel):
@@ -109,6 +131,14 @@ def sse(event: Event) -> str:
     return f"event: {event.get('type', 'message')}\ndata: {json.dumps(event)}\n\n"
 
 
+def allowed_origins(settings: Settings) -> set[str]:
+    """Origins the web app is served from; only they may make writes (POST/PATCH/DELETE)."""
+    return {
+        "{0.scheme}://{0.netloc}".format(urlsplit(u))
+        for u in [settings.web_url, *settings.extra_origins]
+    }
+
+
 def problem(status: int, title: str, detail: str | None = None) -> JSONResponse:
     """RFC 9457 problem details. ``title`` is user-facing."""
     body: dict[str, Any] = {"type": "about:blank", "title": title, "status": status}
@@ -124,6 +154,7 @@ def create_app(
     progress: ProgressBus | None = None,
     mailer: Mailer | None = None,
     settings: Settings | None = None,
+    limiter: RateLimiter | None = None,
 ) -> FastAPI:
     """Build the app. Tests inject ``sessions`` and ``queue``; otherwise they come from settings."""
 
@@ -140,6 +171,8 @@ def create_app(
             app.state.queue = ArqScanQueue(redis)
             if app.state.progress is None:
                 app.state.progress = RedisProgressBus(redis)
+            if app.state.limiter is None:
+                app.state.limiter = RedisRateLimiter(redis)
             cleanup.append(redis.aclose)
         yield
         for fn in cleanup:
@@ -151,19 +184,72 @@ def create_app(
     app.state.progress = progress
     app.state.settings = settings or get_settings()
     app.state.mailer = mailer or make_mailer(app.state.settings)
+    if app.state.settings.secret_key == DEV_SECRET and not app.state.settings.web_url.startswith(
+        "http://localhost"
+    ):
+        logging.getLogger("corpsec").warning(
+            "CORPSEC_SECRET_KEY is the development default; set a long random value."
+        )
+    # injected queue = tests: limits stay in-process unless a limiter is given too
+    app.state.limiter = limiter or (MemoryRateLimiter() if queue is not None else None)
     checks = load_checks()
     app.include_router(auth.router)
     app.include_router(sites.router)
-    allowed_origin = "{0.scheme}://{0.netloc}".format(urlsplit(app.state.settings.web_url))
+    app.include_router(optout.router)
 
     @app.middleware("http")
     async def same_origin_writes(request: Request, call_next: Any) -> Any:
         # Defence in depth next to SameSite=Lax cookies: browsers send Origin on POST/PATCH/
         # DELETE, so cross-site form posts and fetches are refused outright.
         origin = request.headers.get("origin")
-        if request.method not in ("GET", "HEAD", "OPTIONS") and origin and origin != allowed_origin:
+        if (
+            request.method not in ("GET", "HEAD", "OPTIONS")
+            and origin
+            and origin not in allowed_origins(request.app.state.settings)
+        ):
             return problem(403, "This request came from another website and was blocked.")
-        return await call_next(request)
+        response = await call_next(request)
+        # JSON API: never sniffed, framed or cached by shared caches.
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault(
+            "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+        )
+        return response
+
+    async def rate_limit(request: Request, key: str, limit: int, window: int) -> None:
+        limiter: RateLimiter = request.app.state.limiter
+        decision = await limiter.hit(key, limit, window)
+        if not decision.allowed:
+            minutes = max(1, round(decision.retry_after / 60))
+            raise StarletteHTTPException(
+                429,
+                f"You've reached the limit for now. Please try again in about {minutes} "
+                f"minute{'s' if minutes != 1 else ''}.",
+                headers={"Retry-After": str(decision.retry_after)},
+            )
+
+    async def viewer_access(
+        session: AsyncSession, scan: Scan, user: User | None, share: str | None
+    ) -> tuple[bool, bool]:
+        """(redacted, can_act) for this viewer, or 404 if they may not see the scan."""
+        if scan.site_id is None:
+            return True, True  # link-shared anonymous scan: details stay hidden for everyone
+        site = await session.get(Site, scan.site_id)
+        if site is None:
+            raise StarletteHTTPException(404, "We couldn't find that scan.")
+        owner = user is not None and site.owner_id == user.id
+        shared = False
+        if not owner and share:
+            link = await session.scalar(
+                select(ShareLink).where(
+                    ShareLink.token_hash == token_hash(share), ShareLink.scan_id == scan.id
+                )
+            )
+            shared = link is not None and link.expires_at > utcnow()
+        if not owner and not shared:
+            raise StarletteHTTPException(404, "We couldn't find that scan.")
+        return site.verified_at is None, owner
 
     async def check_scan_access(session: AsyncSession, scan: Scan, user: User | None) -> None:
         """Anonymous scans are shared by link; scans of a monitored site are owner-only."""
@@ -175,7 +261,14 @@ def create_app(
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        return problem(exc.status_code, str(exc.detail))
+        response = problem(exc.status_code, str(exc.detail))
+        for key, value in (exc.headers or {}).items():
+            response.headers[key] = value
+        return response
+
+    @app.exception_handler(ScanRefusedError)
+    async def refused(request: Request, exc: ScanRefusedError) -> JSONResponse:
+        return problem(403, str(exc))
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -191,22 +284,57 @@ def create_app(
 
     @app.post("/v1/scans", status_code=202)
     async def create_scan(
-        body: ScanCreate, request: Request, session: SessionDep, queue: QueueDep
+        body: ScanCreate,
+        request: Request,
+        session: SessionDep,
+        queue: QueueDep,
+        user: OptionalUser,
     ) -> ScanCreated:
         target = normalize_target(body.target)
-        client_ip = request.client.host if request.client else None
-        scan = new_scan(target, body.target, site_id=None, ip=client_ip)
+        settings: Settings = request.app.state.settings
+        await check_target(session, target, verified_owner=False)
+        # Someone just scanned this site: show that report instead of scanning again (§10.3).
+        recent = await session.scalar(
+            select(Scan)
+            .where(
+                Scan.site_id.is_(None),
+                Scan.host == target.host,
+                Scan.status != ScanStatus.FAILED,
+                Scan.created_at >= utcnow() - timedelta(minutes=settings.same_target_minutes),
+            )
+            .order_by(Scan.created_at.desc())
+            .limit(1)
+        )
+        if recent is not None:
+            return ScanCreated(id=recent.id, status=recent.status)
+        ip = client_ip(request)
+        if user is not None:
+            await rate_limit(request, f"scan:user:{user.id}", settings.user_scans_per_day, 86400)
+        else:
+            await rate_limit(request, f"scan:ip:{ip}:h", settings.anon_scans_per_hour, 3600)
+            await rate_limit(request, f"scan:ip:{ip}:d", settings.anon_scans_per_day, 86400)
+        scan = new_scan(target, body.target, site_id=None, ip=ip)
         session.add(scan)
-        session.add(AuditLog(actor_ip=client_ip, action="scan.create", target=target.host))
+        session.add(
+            AuditLog(
+                actor_user_id=user.id if user else None,
+                actor_ip=ip,
+                action="scan.create",
+                target=target.host,
+            )
+        )
         await session.commit()
         await queue.enqueue_scan(scan.id)
         return ScanCreated(id=scan.id, status=scan.status)
 
     @app.get("/v1/scans/{scan_id}")
     async def get_scan(
-        scan_id: str, session: SessionDep, user: OptionalUser, lang: str = "en"
+        scan_id: str,
+        session: SessionDep,
+        user: OptionalUser,
+        lang: str = "en",
+        share: str | None = None,
     ) -> ScanOut:
-        # TODO(M5): redact evidence for anonymous / unverified viewers (spec §10.2).
         if not load_templates(lang):
             raise StarletteHTTPException(422, "That language isn't available yet.")
         scan = await session.scalar(
@@ -214,10 +342,12 @@ def create_app(
         )
         if scan is None:
             raise StarletteHTTPException(404, "We couldn't find that scan.")
-        await check_scan_access(session, scan, user)
+        redacted, can_act = await viewer_access(session, scan, user, share)
         return ScanOut(
             id=scan.id,
             site_id=scan.site_id,
+            redacted=redacted,
+            can_act=can_act,
             target=scan.target,
             host=scan.host,
             status=scan.status,
@@ -250,7 +380,9 @@ def create_app(
                     dismissed_reason=f.dismissed_reason,
                     explanation=explanation,
                 )
-                for f, explanation in explained_findings(scan, scan.findings, lang)
+                for f, explanation in explained_findings(
+                    scan, scan.findings, lang, redacted=redacted
+                )
             ],
         )
 
@@ -323,6 +455,64 @@ def create_app(
         await check_scan_access(session, scan, user)
         return row
 
+    @app.post("/v1/scans/{scan_id}/share", status_code=202)
+    async def share_scan(
+        scan_id: str,
+        body: ShareIn,
+        request: Request,
+        session: SessionDep,
+        user: CurrentUser,
+        mailer: MailerDep,
+    ) -> dict[str, str]:
+        """Email the report to someone else, e.g. the person who will fix it (spec §7.5).
+        The signed-in user types the address and presses Send; we never pick recipients."""
+        settings: Settings = request.app.state.settings
+        scan = await session.scalar(
+            select(Scan).where(Scan.id == scan_id).options(selectinload(Scan.findings))
+        )
+        if scan is None:
+            raise StarletteHTTPException(404, "We couldn't find that scan.")
+        await check_scan_access(session, scan, user)
+        await rate_limit(request, f"share:user:{user.id}", settings.shares_per_day, 86400)
+        link = f"{settings.web_url.rstrip('/')}/scan/{scan.id}"
+        if scan.site_id is not None:
+            token = secrets.token_urlsafe(32)
+            session.add(
+                ShareLink(
+                    scan_id=scan.id,
+                    token_hash=token_hash(token),
+                    created_by=user.id,
+                    recipient=body.email.lower(),
+                    expires_at=utcnow() + timedelta(days=30),
+                )
+            )
+            link += f"?share={token}"
+        explained = dict(
+            (f.id, e) for f, e in explained_findings(scan, scan.findings, redacted=True)
+        )
+        top = [e.title for i in (scan.fix_first or []) if (e := explained.get(i)) is not None]
+        session.add(
+            AuditLog(
+                actor_user_id=user.id,
+                actor_ip=client_ip(request),
+                action="scan.share",
+                target=f"{scan.id}->{body.email.lower()}",
+            )
+        )
+        await session.commit()
+        await mailer.send(
+            emails.share_report(
+                body.email.lower(),
+                user.email,
+                scan.registrable_domain,
+                scan.grade,
+                top,
+                link,
+                body.note,
+            )
+        )
+        return {"status": "sent"}
+
     @app.post("/v1/findings/{finding_id}/recheck")
     async def recheck(
         finding_id: str,
@@ -332,8 +522,11 @@ def create_app(
         user: OptionalUser,
     ) -> RecheckOut:
         row = await finding_or_404(session, finding_id, user)
-        client_ip = request.client.host if request.client else None
-        session.add(AuditLog(actor_ip=client_ip, action="finding.recheck", target=row.id))
+        ip = client_ip(request)
+        who = f"user:{user.id}" if user else f"ip:{ip}"
+        settings: Settings = request.app.state.settings
+        await rate_limit(request, f"recheck:{who}", settings.rechecks_per_hour, 3600)
+        session.add(AuditLog(actor_ip=ip, action="finding.recheck", target=row.id))
         await session.commit()
         try:
             result = await queue.recheck(finding_id)
@@ -359,9 +552,12 @@ def create_app(
             )
         row.status = FindingStatus.DISMISSED
         row.dismissed_reason = body.reason
-        client_ip = request.client.host if request.client else None
         session.add(
-            AuditLog(actor_ip=client_ip, action=f"finding.dismiss.{body.reason}", target=row.id)
+            AuditLog(
+                actor_ip=client_ip(request),
+                action=f"finding.dismiss.{body.reason}",
+                target=row.id,
+            )
         )
         scan = await session.get(Scan, row.scan_id)
         assert scan is not None
@@ -378,8 +574,9 @@ def create_app(
         if row.status == FindingStatus.DISMISSED:
             row.status = FindingStatus.OPEN
             row.dismissed_reason = None
-            client_ip = request.client.host if request.client else None
-            session.add(AuditLog(actor_ip=client_ip, action="finding.restore", target=row.id))
+            session.add(
+                AuditLog(actor_ip=client_ip(request), action="finding.restore", target=row.id)
+            )
         scan = await session.get(Scan, row.scan_id)
         assert scan is not None
         await session.flush()

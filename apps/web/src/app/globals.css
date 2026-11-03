@@ -120,3 +120,19 @@ body {
   .stamp, .rise { animation: none; }
   * { transition: none !important; }
 }
+
+/* Printable report: paper colours, no navigation, sensible page breaks. */
+@media print {
+  :root {
+    --paper: #ffffff;
+    --paper-raised: #ffffff;
+    --ink: #000000;
+    --ink-soft: #333333;
+    --rule: #cccccc;
+  }
+  body { background-image: none; }
+  header:has(> a[aria-label]), footer, .no-print, nav, a[href="#main"] { display: none !important; }
+  .stamp { animation: none; }
+  .break-before-page { break-before: page; }
+  .break-inside-avoid { break-inside: avoid; }
+}
