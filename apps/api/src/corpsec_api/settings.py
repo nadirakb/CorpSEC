@@ -1,4 +1,6 @@
 from functools import lru_cache
+from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -8,6 +10,8 @@ DEV_SECRET = "dev-only-change-me"  # noqa: S105 - development default, warned ab
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CORPSEC_", env_file=".env", extra="ignore")
 
+    environment: Literal["development", "production"] = "development"
+    """``production`` refuses to start with development defaults (see ``production_problems``)."""
     database_url: str = "postgresql+asyncpg://corpsec:corpsec@localhost:5432/corpsec"
     redis_url: str = "redis://localhost:6379/0"
     intel_path: str | None = None
@@ -59,6 +63,30 @@ class Settings(BaseSettings):
     shares_per_day: int = 10
     same_target_minutes: int = 10
     """Anonymous scans of the same site within this window reuse the latest scan."""
+
+    def production_problems(self) -> list[str]:
+        """Settings that are fine on a laptop but unsafe or broken on a public server."""
+        problems: list[str] = []
+        if self.secret_key == DEV_SECRET or len(self.secret_key) < 32:
+            problems.append("CORPSEC_SECRET_KEY must be a random value of 32+ characters")
+        web = urlsplit(self.web_url)
+        if web.scheme != "https" or web.hostname in (None, "localhost", "127.0.0.1"):
+            problems.append("CORPSEC_WEB_URL must be the public https:// address")
+        if not self.cookie_secure:
+            problems.append("CORPSEC_COOKIE_SECURE must stay on")
+        if not self.smtp_host:
+            problems.append("CORPSEC_SMTP_HOST is required: sign-in links are sent by email")
+        elif self.smtp_host == "mailpit":
+            problems.append("CORPSEC_SMTP_HOST points at the development mail catcher")
+        if ":corpsec@" in self.database_url:
+            problems.append("CORPSEC_DATABASE_URL uses the development database password")
+        if any(o.startswith("http://") for o in self.extra_origins):
+            problems.append("CORPSEC_EXTRA_ORIGINS must not list plain-http origins")
+        return problems
+
+    def check_production(self) -> None:
+        if self.environment == "production" and (problems := self.production_problems()):
+            raise RuntimeError("Refusing to start in production:\n- " + "\n- ".join(problems))
 
 
 @lru_cache

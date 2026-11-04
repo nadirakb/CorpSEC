@@ -191,6 +191,7 @@ def create_app(
     app.state.queue = queue
     app.state.progress = progress
     app.state.settings = settings or get_settings()
+    app.state.settings.check_production()
     app.state.mailer = mailer or make_mailer(app.state.settings)
     app.state.oidc = OidcClient(oauth_http or httpx.AsyncClient(timeout=10))
     if app.state.settings.secret_key == DEV_SECRET and not app.state.settings.web_url.startswith(

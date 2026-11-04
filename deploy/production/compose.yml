@@ -1,0 +1,155 @@
+# Production stack for one Docker host. See docs/DEPLOY.md.
+#
+#   cd deploy/production
+#   cp env.example .env   # fill it in
+#   docker compose up -d --build
+#
+# Only Caddy is reachable from outside (ports 80/443, automatic HTTPS). Postgres, Redis, the
+# API and the web app listen on the internal network only.
+name: corpsec-prod
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+x-app: &app
+  build:
+    context: ../..
+    dockerfile: deploy/Dockerfile
+  image: corpsec-api:prod
+  restart: unless-stopped
+  logging: *logging
+  env_file: [.env]
+  environment:
+    CORPSEC_ENVIRONMENT: production
+    CORPSEC_DATABASE_URL: postgresql+asyncpg://corpsec:${CORPSEC_DB_PASSWORD:?set CORPSEC_DB_PASSWORD in .env}@postgres:5432/corpsec
+    CORPSEC_REDIS_URL: redis://redis:6379/0
+    CORPSEC_INTEL_PATH: /data/intel.json
+    CORPSEC_WEB_URL: https://${CORPSEC_DOMAIN:?set CORPSEC_DOMAIN in .env}
+    # Requests reach the API only from the web app on this network, which passes on the
+    # client address Caddy wrote into X-Forwarded-For.
+    CORPSEC_TRUSTED_PROXIES: '["172.30.53.0/24"]'
+  volumes: [intel:/data]
+  networks: [app]
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: corpsec
+      POSTGRES_PASSWORD: ${CORPSEC_DB_PASSWORD:?set CORPSEC_DB_PASSWORD in .env}
+      POSTGRES_DB: corpsec
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [app]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "corpsec"]
+      interval: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *logging
+    # Queued scans survive a restart.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+    networks: [app]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 30
+
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  intel-sync:
+    <<: *app
+    restart: "no"
+    # Fills the snapshot on first start; the worker refreshes it every night.
+    command: ["corpsec-intel-sync", "--out", "/data/intel.json", "--previous", "/data/intel.json"]
+
+  api:
+    <<: *app
+    command: ["uvicorn", "corpsec_api.main:app", "--host", "0.0.0.0", "--port", "8000",
+              "--workers", "2", "--no-server-header"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 15s
+      retries: 5
+
+  worker:
+    <<: *app
+    command: ["arq", "corpsec_api.worker.WorkerSettings"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      intel-sync: { condition: service_started }
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        CORPSEC_API_URL: http://api:8000
+    image: corpsec-web:prod
+    restart: unless-stopped
+    logging: *logging
+    networks: [app]
+    depends_on:
+      api: { condition: service_healthy }
+
+  proxy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    logging: *logging
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      CORPSEC_DOMAIN: ${CORPSEC_DOMAIN}
+      CORPSEC_ACME_EMAIL: ${CORPSEC_ACME_EMAIL:?set CORPSEC_ACME_EMAIL in .env}
+      CORPSEC_SECURITY_CONTACT: ${CORPSEC_SECURITY_CONTACT:?set CORPSEC_SECURITY_CONTACT in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # certificates: keep this volume
+      - caddy_config:/config
+    networks: [app]
+    depends_on: [web]
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      PGHOST: postgres
+      PGUSER: corpsec
+      PGPASSWORD: ${CORPSEC_DB_PASSWORD}
+      PGDATABASE: corpsec
+      BACKUP_KEEP_DAYS: ${CORPSEC_BACKUP_KEEP_DAYS:-14}
+    command: ["sh", "/backup.sh"]
+    volumes:
+      - ./backup.sh:/backup.sh:ro
+      - ${CORPSEC_BACKUP_DIR:-./backups}:/backups
+    networks: [app]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+networks:
+  app:
+    ipam:
+      config: [{ subnet: 172.30.53.0/24 }]
+
+volumes:
+  pgdata:
+  redisdata:
+  intel:
+  caddy_data:
+  caddy_config:

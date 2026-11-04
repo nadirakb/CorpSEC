@@ -26,6 +26,7 @@ from corpsec_api.settings import get_settings
 from corpsec_intel.sync import sync_file
 from corpsec_scanner import ScanOptions, load_checks
 from corpsec_scanner.engine import ProgressEvent
+from corpsec_scanner.http import HttpPolicy
 from corpsec_scanner.intel import EMPTY_SNAPSHOT, IntelSnapshot, load_snapshot
 
 
@@ -47,7 +48,18 @@ class IntelCache:
         return self._snapshot
 
 
+def scan_options(ctx: dict[str, Any]) -> ScanOptions:
+    """Current intel, and a user agent that points site owners at this deployment's bot page."""
+    agent = f"CorpSEC/0.1 (+{ctx['settings'].web_url.rstrip('/')}/bot)"
+    return ScanOptions(
+        intel=ctx["intel"].get(),
+        http_policy=HttpPolicy(user_agent=agent),
+        external_http_policy=HttpPolicy(max_requests=10, max_body_bytes=200_000, user_agent=agent),
+    )
+
+
 async def startup(ctx: dict[str, Any]) -> None:
+    get_settings().check_production()
     engine = make_engine(get_settings().database_url)
     ctx["engine"] = engine
     ctx["sessions"] = async_sessionmaker(engine, expire_on_commit=False)
@@ -80,7 +92,7 @@ async def run_scan_job(ctx: dict[str, Any], scan_id: str) -> str | None:
             },
         )
 
-    options = ScanOptions(intel=ctx["intel"].get())
+    options = scan_options(ctx)
     try:
         status = await execute_scan(ctx["sessions"], scan_id, ctx["checks"], options, on_progress)
     finally:
@@ -94,7 +106,7 @@ async def run_scan_job(ctx: dict[str, Any], scan_id: str) -> str | None:
 
 
 async def verify_site_job(ctx: dict[str, Any], site_id: str, method: str) -> dict[str, Any]:
-    return await execute_verify(ctx["sessions"], site_id, method)
+    return await execute_verify(ctx["sessions"], site_id, method, scan_options(ctx))
 
 
 async def schedule_due_scans_job(ctx: dict[str, Any]) -> int:
@@ -103,12 +115,14 @@ async def schedule_due_scans_job(ctx: dict[str, Any]) -> int:
     async def enqueue(scan_id: str) -> None:
         await redis.enqueue_job(SCAN_JOB, scan_id, _job_id=scan_id)
 
-    started = await schedule_due_scans(ctx["sessions"], enqueue, ctx["mailer"], ctx["settings"])
+    started = await schedule_due_scans(
+        ctx["sessions"], enqueue, ctx["mailer"], ctx["settings"], scan_options(ctx)
+    )
     return len(started)
 
 
 async def light_checks_job(ctx: dict[str, Any]) -> int:
-    options = ScanOptions(intel=ctx["intel"].get())
+    options = scan_options(ctx)
     return await run_light_checks(
         ctx["sessions"], ctx["checks"], ctx["mailer"], ctx["settings"], options
     )
@@ -136,7 +150,7 @@ async def digest_job(ctx: dict[str, Any]) -> int:
 
 
 async def recheck_finding_job(ctx: dict[str, Any], finding_id: str) -> dict[str, Any] | None:
-    options = ScanOptions(intel=ctx["intel"].get())
+    options = scan_options(ctx)
     return await execute_recheck(ctx["sessions"], finding_id, ctx["checks"], options)
 
 
