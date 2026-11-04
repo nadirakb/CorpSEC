@@ -40,7 +40,7 @@ PLATFORM_NAMES = {
 
 def pretty_product(value: str) -> str:
     """``wordpress-plugin:contact-form-7`` -> ``contact-form-7``; ``php`` -> ``PHP``."""
-    if value.startswith("wordpress-plugin:"):
+    if value.startswith(("wordpress-plugin:", "wordpress-theme:")):
         return value.split(":", 1)[1]
     return PLATFORM_NAMES.get(value, value)
 

@@ -97,7 +97,7 @@ WordPress core and plugin vulnerabilities come from the [Wordfence Intelligence]
 
 1. Create a free account at wordfence.com and generate a key under **Account → Integrations**.
 2. Put it in your environment or in `deploy/.env` (gitignored): `CORPSEC_WORDFENCE_API_KEY=…`
-3. Re-run `corpsec-intel-sync` (or restart the compose stack).
+3. Re-run `corpsec-intel-sync` (or restart the compose stack). The worker also refreshes the snapshot every night at 02:41 UTC when `CORPSEC_INTEL_PATH` is set; a source that fails keeps the previous night's data.
 
 Without a key the sync skips this source and WordPress vulnerability checks stay silent. The licence requires showing a link to each Wordfence record and the Defiant (and, for CVEs, MITRE) copyright notices wherever the data is displayed; findings carry them in their evidence.
 

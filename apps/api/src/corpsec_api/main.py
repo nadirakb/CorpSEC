@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from corpsec_api import auth, emails, optout, sites
+from corpsec_api import account, auth, emails, optout, sites
 from corpsec_api.db import AuditLog, FindingRow, Scan, ShareLink, Site, User, make_engine
 from corpsec_api.deps import (
     CurrentUser,
@@ -205,6 +205,7 @@ def create_app(
     app.include_router(auth.router)
     app.include_router(sites.router)
     app.include_router(optout.router)
+    app.include_router(account.router)
 
     @app.middleware("http")
     async def same_origin_writes(request: Request, call_next: Any) -> Any:

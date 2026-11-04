@@ -37,6 +37,9 @@ class User(TimestampMixin, Base):
     locale: Mapped[str] = mapped_column(String(16), default="en")
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    weekly_digest: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    """Opt-in weekly summary email (spec §4.5)."""
+    last_digest_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class LoginToken(TimestampMixin, Base):

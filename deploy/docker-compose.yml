@@ -12,6 +12,8 @@ x-app: &app
     CORPSEC_DATABASE_URL: postgresql+asyncpg://corpsec:corpsec@postgres:5432/corpsec
     CORPSEC_REDIS_URL: redis://redis:6379/0
     CORPSEC_INTEL_PATH: /data/intel.json
+    # Optional: WordPress vulnerabilities from Wordfence. Put it in deploy/.env (gitignored).
+    CORPSEC_WORDFENCE_API_KEY: ${CORPSEC_WORDFENCE_API_KEY:-}
     CORPSEC_WEB_URL: http://localhost:8088
     CORPSEC_EXTRA_ORIGINS: '["http://localhost:3000"]'
     # Development mail catcher: read sign-in links and alerts at http://localhost:8025
@@ -65,12 +67,8 @@ services:
 
   intel-sync:
     <<: *app
-    # Fills the intel volume once at startup. In production run it nightly (M4 scheduler).
+    # Fills the intel volume at startup; the worker refreshes it every night.
     command: ["corpsec-intel-sync", "--out", "/data/intel.json", "--previous", "/data/intel.json"]
-    environment:
-      # Optional: WordPress vulnerabilities from Wordfence. Put it in deploy/.env (gitignored).
-      CORPSEC_WORDFENCE_API_KEY: ${CORPSEC_WORDFENCE_API_KEY:-}
-    user: root
     restart: "no"
 
   api:

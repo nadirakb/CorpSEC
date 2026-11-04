@@ -206,7 +206,7 @@ async def test_links_existing_magic_link_account(
         # Later the Google account's email changes: the subject still finds the same person.
         await oauth_sign_in(c, idp, "google", sub="g-1", email="leyla@new-bakery.az")
         me = (await c.get("/v1/me")).json()
-        assert me == {"id": user_id, "email": "leyla@bakery.az"}
+        assert (me["id"], me["email"]) == (user_id, "leyla@bakery.az")
 
 
 async def test_bad_state_is_refused(

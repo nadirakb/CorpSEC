@@ -10,6 +10,7 @@ from arq.connections import ArqRedis, RedisSettings
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from corpsec_api.db import Scan, make_engine
+from corpsec_api.digest import send_weekly_digests
 from corpsec_api.mailer import make_mailer
 from corpsec_api.monitoring import (
     execute_verify,
@@ -22,6 +23,7 @@ from corpsec_api.queue import SCAN_JOB
 from corpsec_api.retention import purge_old_data
 from corpsec_api.scans import execute_recheck, execute_scan
 from corpsec_api.settings import get_settings
+from corpsec_intel.sync import sync_file
 from corpsec_scanner import ScanOptions, load_checks
 from corpsec_scanner.engine import ProgressEvent
 from corpsec_scanner.intel import EMPTY_SNAPSHOT, IntelSnapshot, load_snapshot
@@ -116,6 +118,23 @@ async def purge_job(ctx: dict[str, Any]) -> dict[str, int]:
     return await purge_old_data(ctx["sessions"])
 
 
+async def intel_sync_job(ctx: dict[str, Any]) -> list[str] | None:
+    """Nightly vulnerability/product data refresh. Failed sources keep yesterday's data."""
+    settings = ctx["settings"]
+    if not settings.intel_path:
+        return None
+    path = Path(settings.intel_path)
+    return await sync_file(
+        path,
+        previous=path,  # a missing file just means "no previous data"
+        wordfence_key=settings.wordfence_api_key,
+    )
+
+
+async def digest_job(ctx: dict[str, Any]) -> int:
+    return await send_weekly_digests(ctx["sessions"], ctx["mailer"], ctx["settings"])
+
+
 async def recheck_finding_job(ctx: dict[str, Any], finding_id: str) -> dict[str, Any] | None:
     options = ScanOptions(intel=ctx["intel"].get())
     return await execute_recheck(ctx["sessions"], finding_id, ctx["checks"], options)
@@ -127,6 +146,8 @@ class WorkerSettings:
         cron(schedule_due_scans_job, minute={0, 15, 30, 45}, unique=True),
         cron(light_checks_job, minute={5, 35}, unique=True),
         cron(purge_job, hour={3}, minute={17}, unique=True),
+        cron(intel_sync_job, hour={2}, minute={41}, unique=True, timeout=1800),
+        cron(digest_job, weekday={0}, hour={8}, minute={7}, unique=True),
     ]
     on_startup = startup
     on_shutdown = shutdown

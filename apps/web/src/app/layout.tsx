@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Public_Sans } from "next/font/google";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { AccountNav } from "@/components/AccountNav";
@@ -20,7 +21,14 @@ export const metadata: Metadata = {
   description: t.meta.description,
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+// Every page renders per request so Next.js can stamp the CSP nonce from src/proxy.ts on
+// its scripts; a prerendered shell would carry no nonce and be blocked.
+export const instant = false;
+
+export default async function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  await connection();
   return (
     <html lang="en" className={`${fraunces.variable} ${publicSans.variable}`}>
       <body className="text-ink antialiased">

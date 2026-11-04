@@ -105,3 +105,17 @@ def share_report(
             "The link is read-only. It works for 30 days.\n\nCorpSEC"
         ),
     )
+
+
+def weekly_digest(to: str, lines: Sequence[str], link: str, settings_link: str) -> Mail:
+    body = "\n".join(f"  - {line}" for line in lines)
+    return Mail(
+        to=to,
+        subject="Your weekly CorpSEC summary",
+        text=(
+            f"Hello,\n\nHere is how your websites did this week:\n\n{body}\n\n"
+            f"See details and what to fix:\n{link}\n\n"
+            f"You asked for this weekly email. To stop it, turn it off here:\n"
+            f"{settings_link}\n\nCorpSEC"
+        ),
+    )

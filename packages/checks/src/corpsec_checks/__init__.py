@@ -34,6 +34,7 @@ from corpsec_checks.software.sw_005 import VulnerableJsLibraries
 from corpsec_checks.software.sw_006 import EndOfLifeSoftware
 from corpsec_checks.software.sw_007 import WordPressUserEnumeration
 from corpsec_checks.software.sw_008 import WordPressXmlRpc
+from corpsec_checks.software.sw_009 import VulnerableThemes
 from corpsec_checks.tls.tls_001 import CertificateValid
 from corpsec_checks.tls.tls_002 import CertificateExpiry
 from corpsec_checks.tls.tls_003 import LegacyTlsDisabled
@@ -92,6 +93,7 @@ CHECKS: tuple[type[Check], ...] = (
     EndOfLifeSoftware,
     WordPressUserEnumeration,
     WordPressXmlRpc,
+    VulnerableThemes,
     GitExposed,
     EnvFileExposed,
     WpConfigBackupExposed,

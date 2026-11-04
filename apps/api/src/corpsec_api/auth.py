@@ -55,6 +55,7 @@ class VerifyIn(BaseModel):
 class MeOut(BaseModel):
     id: str
     email: str
+    weekly_digest: bool = False
 
 
 class ProvidersOut(BaseModel):
@@ -175,7 +176,7 @@ async def verify_magic_link(
     token = start_session(session, request, user, settings, method="email")
     await session.commit()
     set_session_cookie(response, token, settings)
-    return MeOut(id=user.id, email=user.email)
+    return MeOut(id=user.id, email=user.email, weekly_digest=user.weekly_digest)
 
 
 def oauth_redirect_uri(settings: Settings, provider: str) -> str:
@@ -341,7 +342,7 @@ async def oauth_callback(
 
 @router.get("/me")
 async def me(user: CurrentUser) -> MeOut:
-    return MeOut(id=user.id, email=user.email)
+    return MeOut(id=user.id, email=user.email, weekly_digest=user.weekly_digest)
 
 
 @router.post("/auth/logout", status_code=204)

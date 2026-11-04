@@ -37,6 +37,9 @@ export function AccountNav() {
       <Link href="/dashboard" className={navBtn}>
         {t.account.dashboard}
       </Link>
+      <Link href="/account" className="text-sm font-semibold text-ink-soft underline-offset-4 hover:underline">
+        {t.account.settings}
+      </Link>
       <button
         type="button"
         className="text-sm font-semibold text-ink-soft underline-offset-4 hover:underline"

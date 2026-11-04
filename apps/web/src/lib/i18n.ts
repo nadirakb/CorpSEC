@@ -202,6 +202,26 @@ export const en = {
     signIn: "Sign in",
     signOut: "Sign out",
     dashboard: "My sites",
+    settings: "Account",
+  },
+  accountPage: {
+    title: "Your account",
+    signedInAs: (email: string) => `Signed in as ${email}.`,
+    digestTitle: "Weekly summary email",
+    digestLabel: "Send me a short summary of my sites every Monday",
+    digestHelp:
+      "One email a week with each site's grade and how many problems are open. Urgent alerts still arrive right away.",
+    saved: "Saved.",
+    exportTitle: "Download your data",
+    exportLede:
+      "Get a copy of everything we keep about you: your sites, their scan results, alerts and sign-in activity.",
+    exportButton: "Download my data (JSON)",
+    deleteTitle: "Delete your account",
+    deleteLede:
+      "This removes your account, your sites and all their scan results for good. Shared report links stop working. This can't be undone.",
+    deleteLabel: "Type your email address to confirm",
+    deleteButton: "Delete my account",
+    deleting: "Deleting…",
   },
   login: {
     title: "Sign in to CorpSEC",

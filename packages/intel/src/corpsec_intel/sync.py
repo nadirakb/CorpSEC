@@ -143,7 +143,7 @@ def parse_rdap(data: dict[str, Any]) -> dict[str, str]:
 
 
 _WF_SEVERITY = {"critical": "critical", "high": "high", "medium": "medium", "low": "low"}
-_WF_PRODUCT = {"core": "wordpress", "plugin": "wordpress-plugin:"}
+_WF_PRODUCT = {"core": "wordpress", "plugin": "wordpress-plugin:", "theme": "wordpress-theme:"}
 
 
 _VERSION_RE = re.compile(r"^[vV]?(\d+(?:\.\d+)*(?:[-.]?[A-Za-z0-9]+)*)")
@@ -183,8 +183,8 @@ def parse_wordfence(
 ) -> tuple[dict[str, list[Vulnerability]], dict[str, Attribution]]:
     """Stream-parse the v3 production feed (it is >150 MB, so never ``json.load`` it).
 
-    Keeps core and plugin records; themes are skipped because CorpSEC doesn't fingerprint
-    themes yet, and informational records (no real-world impact) are dropped.
+    Keeps core, plugin and theme records; informational records (no real-world impact) are
+    dropped.
     """
     vulns: dict[str, list[Vulnerability]] = {}
     attributions: dict[str, Attribution] = {}
@@ -337,17 +337,33 @@ async def build_snapshot(
     return snap, failed
 
 
-async def _run(out: Path, previous: Path | None) -> int:
+async def sync_file(
+    out: Path,
+    *,
+    previous: Path | None = None,
+    wordfence_key: str | None = None,
+    client: httpx.AsyncClient | None = None,
+) -> list[str]:
+    """Build a snapshot and replace ``out`` atomically. Returns the sources that failed.
+
+    Used by the CLI and by the worker's nightly job (``corpsec_api.worker``).
+    """
     prev = load_snapshot(previous) if previous else None
-    async with httpx.AsyncClient(
-        timeout=60, headers={"User-Agent": USER_AGENT}, follow_redirects=True
-    ) as client:
-        snap, failed = await build_snapshot(
-            client, prev, wordfence_key=os.environ.get(WORDFENCE_KEY_ENV) or None
-        )
-    tmp = out.with_suffix(out.suffix + ".tmp")
-    tmp.write_text(snap.model_dump_json())
-    tmp.replace(out)  # atomic: scans never read a half-written file
+    if client is None:
+        async with httpx.AsyncClient(
+            timeout=60, headers={"User-Agent": USER_AGENT}, follow_redirects=True
+        ) as own:
+            snap, failed = await build_snapshot(own, prev, wordfence_key=wordfence_key)
+    else:
+        snap, failed = await build_snapshot(client, prev, wordfence_key=wordfence_key)
+
+    def write() -> None:
+        tmp = out.with_suffix(out.suffix + ".tmp")
+        tmp.write_text(snap.model_dump_json())
+        tmp.replace(out)  # atomic: scans never read a half-written file
+
+    # ~20 MB of JSON: keep the worker's event loop free while it is written
+    await asyncio.to_thread(write)
     log.info(
         "wrote %s: %d products, %d JS libraries, %d KEV CVEs, %d RDAP TLDs, "
         "%d WordPress products with vulnerabilities; failed: %s",
@@ -358,6 +374,13 @@ async def _run(out: Path, previous: Path | None) -> int:
         len(snap.rdap),
         sum(k.startswith("wordpress") for k in snap.vulns),
         ", ".join(failed) or "none",
+    )
+    return failed
+
+
+async def _run(out: Path, previous: Path | None) -> int:
+    failed = await sync_file(
+        out, previous=previous, wordfence_key=os.environ.get(WORDFENCE_KEY_ENV) or None
     )
     return 1 if failed else 0
 
