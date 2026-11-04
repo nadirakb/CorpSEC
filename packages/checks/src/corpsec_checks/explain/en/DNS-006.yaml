@@ -1,0 +1,18 @@
+check_id: DNS-006
+title: "Domains that look like yours exist"
+pass_title: "No look-alike domains found"
+summary: "We found {{count|some}} domains that look almost like {{domain}}, such as {{example|a near copy}}. You don't own them. Scammers use names like these to fool your customers."
+analogy: "It is like a shop down the street with a sign almost the same as yours."
+why_it_matters:
+  - "Scam emails from a look-alike domain can trick your customers or staff into paying or sharing passwords."
+  - "This does not lower your grade. It is something to watch."
+fix:
+  default:
+    - "Check who owns each domain in the details below (search its name in a domain lookup site)."
+    - "If one copies your brand, report it to the company it was registered with."
+    - "Warn your staff and customers: you only send email from {{domain}}."
+    - "For very close names, think about registering them yourself."
+effort_minutes: 30
+who_can_fix: "You, or whoever manages your brand and domains."
+technical: "Registered typosquat/homoglyph/TLD-swap variants (NS not shared with {{domain}}): e.g. {{example}}."
+variables: [count, example]

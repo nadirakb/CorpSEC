@@ -50,9 +50,11 @@ class IntelCache:
 
 def scan_options(ctx: dict[str, Any]) -> ScanOptions:
     """Current intel, and a user agent that points site owners at this deployment's bot page."""
-    agent = f"CorpSEC/0.1 (+{ctx['settings'].web_url.rstrip('/')}/bot)"
+    settings = ctx["settings"]
+    agent = f"CorpSEC/0.1 (+{settings.web_url.rstrip('/')}/bot)"
     return ScanOptions(
         intel=ctx["intel"].get(),
+        check_config=settings.check_config(),
         http_policy=HttpPolicy(user_agent=agent),
         external_http_policy=HttpPolicy(max_requests=10, max_body_bytes=200_000, user_agent=agent),
     )

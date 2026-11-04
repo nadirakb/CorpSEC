@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from corpsec_scanner.dns import DnsClient
@@ -40,6 +41,7 @@ class ScanContext:
     * ``tls`` — raw TLS handshakes / ClientHello probes.
     * ``dns`` — cached per scan.
     * ``intel`` — local vulnerability snapshot (may be empty).
+    * ``config`` — deployment settings for individual checks; checks must work without them.
     """
 
     def __init__(
@@ -53,6 +55,7 @@ class ScanContext:
         external: SafeHttpClient | None = None,
         intel: IntelSnapshot = EMPTY_SNAPSHOT,
         facts: Facts | None = None,
+        config: Mapping[str, str] | None = None,
     ) -> None:
         self.scan_id = scan_id
         self.target = target
@@ -62,6 +65,7 @@ class ScanContext:
         self.external = external or http
         self.intel = intel
         self.facts = facts or Facts()
+        self.config: Mapping[str, str] = config or {}
         self._writable: frozenset[str] = frozenset()
 
     def for_check(self, provides: frozenset[str]) -> ScanContext:
@@ -75,6 +79,7 @@ class ScanContext:
             external=self.external,
             intel=self.intel,
             facts=self.facts,
+            config=self.config,
         )
         view._writable = provides
         return view

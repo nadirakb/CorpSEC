@@ -257,3 +257,7 @@ def test_scanner_user_agent_points_at_this_deployment() -> None:
     assert options.http_policy.user_agent == "CorpSEC/0.1 (+https://scan.example/bot)"
     assert options.external_http_policy.user_agent == options.http_policy.user_agent
     assert options.external_http_policy.max_requests == 10
+    assert options.check_config == {"internetdb": "off"}
+
+    ctx["settings"] = Settings(spamhaus_dqs_key="k", internetdb_enabled=True)
+    assert scan_options(ctx).check_config == {"internetdb": "on", "spamhaus_dqs_key": "k"}

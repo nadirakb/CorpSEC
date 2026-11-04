@@ -1,0 +1,15 @@
+check_id: MAIL-009
+title: "Your logo doesn't show next to your emails"
+pass_title: "Your logo is set up to show next to your emails"
+summary: "Some email apps, like Gmail and Apple Mail, can show your logo next to your messages (BIMI). It helps people spot real emails from you."
+why_it_matters:
+  - "This is a nice extra that builds trust. It is not urgent."
+  - "It only works after your domain blocks fake email from your name."
+fix:
+  default:
+    - "First make sure fake email from your name is blocked (see the email checks above)."
+    - "Ask your IT person to add a BIMI record with your logo in the right format."
+    - "Gmail also asks for a paid logo certificate. Other apps do not."
+effort_minutes: 60
+who_can_fix: "Your IT person or email provider."
+technical: "No v=BIMI1 TXT record at default._bimi.{{domain}} (requires DMARC p=quarantine/reject)."

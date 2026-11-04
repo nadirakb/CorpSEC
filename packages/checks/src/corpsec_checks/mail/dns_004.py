@@ -1,6 +1,7 @@
 """DNS-004 — no subdomain points at a deleted cloud resource (subdomain takeover).
 
-Subdomains come from the certificate's names (no brute force). A finding needs either a
+Subdomains come from the certificate's names and public certificate logs (DNS-005), never
+brute force. A finding needs either a
 service-specific "this doesn't exist" page, or NXDOMAIN for a service where a missing
 name can be re-registered by anyone.
 """
@@ -13,12 +14,12 @@ from typing import ClassVar
 
 import httpx
 
-from corpsec_checks._common import FACT_TLS, observe
+from corpsec_checks._common import FACT_SUBDOMAINS, FACT_TLS, observe
 from corpsec_checks.tls._cert import TlsInfo
 from corpsec_scanner import Check, Confidence, Observation, ScanContext, Severity, Stage
 from corpsec_scanner.dns import DnsError
 
-MAX_SUBDOMAINS = 5
+MAX_SUBDOMAINS = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,9 +58,9 @@ def match_service(cname: str) -> Service | None:
 
 class SubdomainTakeover(Check):
     id = "DNS-004"
-    version = "1.0.0"
+    version = "1.1.0"
     stage = Stage.EMAIL
-    uses: ClassVar[frozenset[str]] = frozenset({FACT_TLS})
+    uses: ClassVar[frozenset[str]] = frozenset({FACT_TLS, FACT_SUBDOMAINS})
 
     def candidates(self, ctx: ScanContext) -> list[str]:
         domain = ctx.target.registrable_domain
@@ -67,6 +68,7 @@ class SubdomainTakeover(Check):
         info: TlsInfo | None = ctx.facts.get(FACT_TLS)
         if info and info.cert:
             names.update(n.lower() for n in info.cert.sans if not n.startswith("*."))
+        names.update(ctx.facts.get(FACT_SUBDOMAINS) or [])
         names.discard(domain)
         return sorted(n for n in names if ctx.target.in_scope(n))[:MAX_SUBDOMAINS]
 

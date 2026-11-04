@@ -11,6 +11,9 @@ corpsec-lab-self.com {
 azurewebsites.net {
     file /etc/coredns/azurewebsites.net.zone
 }
+dbl.spamhaus.org {
+    file /etc/coredns/dbl.spamhaus.org.zone
+}
 . {
     # Everything else is refused: the lab has no internet.
     template ANY ANY {

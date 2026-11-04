@@ -1,0 +1,17 @@
+check_id: REP-002
+title: "Your mail server is on a spam blocklist"
+pass_title: "Your mail servers are not on a spam blocklist"
+summary: "Spamhaus lists {{mail_server|your mail server}} ({{ip|its address}}) as a {{reason|source of spam}}. Other companies may refuse your email."
+analogy: "It is like your post office being on a list of senders who mail junk. Many people throw away its letters."
+why_it_matters:
+  - "Emails to customers, like invoices, may never arrive."
+  - "A listing often means a computer or account on that server was hacked."
+fix:
+  default:
+    - "Open the Spamhaus link in the details below to see the reason."
+    - "Ask your IT person to find and fix the cause, like a hacked mailbox or computer."
+    - "Then ask Spamhaus to remove the listing on that page."
+effort_minutes: 120
+who_can_fix: "Your IT person or email host."
+technical: "{{ip}} ({{mail_server}}) listed in Spamhaus ZEN: {{reason}}."
+variables: [mail_server, ip, reason]

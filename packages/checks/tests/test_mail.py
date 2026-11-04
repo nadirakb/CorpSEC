@@ -30,6 +30,7 @@ GOOD = {
     ("google._domainkey.example.com", "TXT"): ["v=DKIM1; k=rsa; p=MIIBIjAN"],
     ("_mta-sts.example.com", "TXT"): ["v=STSv1; id=1"],
     ("_smtp._tls.example.com", "TXT"): ["v=TLSRPTv1; rua=mailto:t@example.com"],
+    ("default._bimi.example.com", "TXT"): ["v=BIMI1; l=https://example.com/logo.svg"],
 }
 
 
@@ -38,7 +39,9 @@ async def test_well_configured_google_domain(scan: Scan) -> None:
     got = {f.check_id: f.severity for f in result.findings}
     assert got.pop("MAIL-001") == Severity.INFO
     assert set(got.values()) == {Severity.PASS}
-    assert set(got) == {"MAIL-002", "MAIL-003", "MAIL-004", "MAIL-005", "MAIL-006", "MAIL-008"}
+    assert set(got) == {
+        "MAIL-002", "MAIL-003", "MAIL-004", "MAIL-005", "MAIL-006", "MAIL-008", "MAIL-009",
+    }  # fmt: skip
     mx = next(f for f in result.findings if f.check_id == "MAIL-001")
     assert mx.context == {"email_provider": "google_workspace"}
 

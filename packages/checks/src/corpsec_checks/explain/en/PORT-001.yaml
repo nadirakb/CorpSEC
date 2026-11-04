@@ -1,0 +1,17 @@
+check_id: PORT-001
+title: "A risky service is open to the internet: {{service|a private service}}"
+pass_title: "No risky services are open to the internet"
+summary: "Your server at {{ip|this address}} accepts connections for {{service|a private service}} on port {{port|a port}} from anyone. This should only be reachable from inside your company."
+analogy: "It is like leaving the door to your back office open to the street."
+why_it_matters:
+  - "Criminals scan the whole internet for these doors every day."
+  - "Open databases and remote desktops are a common way data is stolen or held for ransom."
+fix:
+  default:
+    - "Ask your IT person or web host to close port {{port|this port}} to the internet with a firewall."
+    - "If staff need it from outside, let them connect through a private network (VPN) only."
+    - "Change the passwords for this service, in case someone already got in."
+effort_minutes: 30
+who_can_fix: "Your IT person or web host."
+technical: "Shodan InternetDB reports {{ip}}:{{port}} ({{service}}) open; data may be a few days old."
+variables: [ip, port, service]
