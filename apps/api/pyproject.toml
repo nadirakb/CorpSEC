@@ -18,6 +18,7 @@ dependencies = [
     "email-validator>=2.2",
     "pyjwt[crypto]>=2.10",
     "httpx>=0.28",
+    "sentry-sdk>=2.0",
 ]
 
 [tool.uv.sources]

@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from corpsec_api import events
 from corpsec_api.db import Alert, AuditLog, Scan, Site
 from corpsec_api.deps import CurrentUser, QueueDep, SessionDep, client_ip
 from corpsec_api.monitoring import first_scan_time
@@ -280,6 +281,7 @@ async def scan_site(
         )
     scan = new_scan(target, site.domain, site_id=site.id, ip=client_ip(request))
     session.add(scan)
+    events.record_request(session, request, events.SCAN_STARTED, user_id=user.id, kind="site")
     session.add(
         AuditLog(
             actor_user_id=user.id,

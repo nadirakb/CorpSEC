@@ -7,12 +7,22 @@ from datetime import datetime, timedelta
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from corpsec_api.db import AuditLog, LoginToken, Scan, ShareLink, UserSession
+from corpsec_api.db import (
+    AnalyticsEvent,
+    AuditLog,
+    FindingFeedback,
+    LoginToken,
+    Scan,
+    ShareLink,
+    UserSession,
+)
 from corpsec_scanner.models import utcnow
 
 ANONYMOUS_SCANS = timedelta(days=7)
 AUDIT_LOG = timedelta(days=365)
 EXPIRED_GRACE = timedelta(days=1)
+ANALYTICS = timedelta(days=395)  # 13 months: a full year to compare against
+FEEDBACK_RESOLVED = timedelta(days=365)
 
 
 async def purge_old_data(
@@ -31,6 +41,14 @@ async def purge_old_data(
             ("login_tokens", delete(LoginToken).where(LoginToken.expires_at < now - EXPIRED_GRACE)),
             ("sessions", delete(UserSession).where(UserSession.expires_at < now - EXPIRED_GRACE)),
             ("share_links", delete(ShareLink).where(ShareLink.expires_at < now - EXPIRED_GRACE)),
+            ("analytics_events", delete(AnalyticsEvent).where(AnalyticsEvent.at < now - ANALYTICS)),
+            (
+                "resolved_feedback",
+                delete(FindingFeedback).where(
+                    FindingFeedback.resolved.is_(True),
+                    FindingFeedback.created_at < now - FEEDBACK_RESOLVED,
+                ),
+            ),
         ):
             result = await session.execute(stmt)
             counts[name] = result.rowcount or 0  # type: ignore[attr-defined]

@@ -10,6 +10,8 @@ const SECTIONS = [
     "Your email address, if you create an account.",
     "The sites you add, and the results of each check.",
     "For each check: the address it came from, kept for one year to stop abuse.",
+    "Usage counts, like which pages are opened and how many checks run. We count visitors with a code that changes every day, so we can't follow you from one day to the next. No cookies, no addresses, no outside services. Kept 13 months.",
+    "If you tell us a result looks wrong: your note and the technical details of that result.",
   ]],
   ["How long we keep it", [
     "Checks made without an account: 7 days.",
@@ -17,10 +19,11 @@ const SECTIONS = [
   ]],
   ["What we don't do", [
     "We don't sell your data and don't use advertising trackers.",
+    "If your browser asks sites not to track you (Global Privacy Control or Do Not Track), we don't count your visits at all.",
     "We never store full passwords or keys we find. We hide all but a few characters.",
   ]],
   ["Your rights", [
-    "You can ask for a copy of your data or ask us to delete it: privacy@corpsec.app.",
+    "You can download a copy of your data or delete your account on the Account page, or write to privacy@corpsec.app.",
   ]],
 ] as const;
 

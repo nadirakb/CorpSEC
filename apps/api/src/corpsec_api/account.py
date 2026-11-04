@@ -10,12 +10,13 @@ from typing import Any
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from corpsec_api.auth import MeOut
+from corpsec_api.auth import MeOut, me_out
 from corpsec_api.db import (
     Alert,
+    AnalyticsEvent,
     AuditLog,
     FindingRow,
     LoginToken,
@@ -25,7 +26,7 @@ from corpsec_api.db import (
     User,
     UserIdentity,
 )
-from corpsec_api.deps import SESSION_COOKIE, CurrentUser, SessionDep, client_ip
+from corpsec_api.deps import SESSION_COOKIE, CurrentUser, SessionDep, SettingsDep, client_ip
 from corpsec_scanner.models import utcnow
 
 router = APIRouter(prefix="/v1/me", tags=["account"])
@@ -45,13 +46,15 @@ def _iso(value: datetime | None) -> str | None:
 
 
 @router.patch("")
-async def update_account(body: AccountPatch, user: CurrentUser, session: SessionDep) -> MeOut:
+async def update_account(
+    body: AccountPatch, user: CurrentUser, session: SessionDep, settings: SettingsDep
+) -> MeOut:
     db_user = await session.get(User, user.id)
     assert db_user is not None
     if body.weekly_digest is not None:
         db_user.weekly_digest = body.weekly_digest
     await session.commit()
-    return MeOut(id=db_user.id, email=db_user.email, weekly_digest=db_user.weekly_digest)
+    return me_out(db_user, settings)
 
 
 @router.get("/export")
@@ -139,6 +142,16 @@ async def export_account(user: CurrentUser, session: SessionDep) -> JSONResponse
             {"scan_id": sh.scan_id, "recipient": sh.recipient, "expires_at": _iso(sh.expires_at)}
             for sh in shares
         ],
+        "usage_events": [
+            {"event": e.name, "at": _iso(e.at), "details": e.props}
+            for e in (
+                await session.scalars(
+                    select(AnalyticsEvent)
+                    .where(AnalyticsEvent.user_id == user.id)
+                    .order_by(AnalyticsEvent.at)
+                )
+            ).all()
+        ],
         "activity_log": [
             {"action": a.action, "target": a.target, "ip": a.actor_ip, "at": _iso(a.at)}
             for a in audit
@@ -162,6 +175,10 @@ async def delete_account(
     # identities cascade from the user row.
     await session.execute(delete(Scan).where(Scan.site_id.in_(site_ids)))
     await session.execute(delete(LoginToken).where(LoginToken.email == user.email))
+    # Usage statistics stay, but no longer point at the person.
+    await session.execute(
+        update(AnalyticsEvent).where(AnalyticsEvent.user_id == user.id).values(user_id=None)
+    )
     # The abuse log keeps the action for its normal retention (1 year), without the email.
     session.add(
         AuditLog(

@@ -15,7 +15,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from corpsec_api import emails
+from corpsec_api import emails, events
 from corpsec_api.db import Alert, FindingRow, Scan, Site, User
 from corpsec_api.mailer import Mail, Mailer
 from corpsec_api.policy import is_opted_out
@@ -100,6 +100,8 @@ async def execute_verify(
         )
         if result.verified:
             now = utcnow()
+            if site.verified_at is None:
+                events.record(session, events.SITE_VERIFIED, user_id=site.owner_id, method=method)
             site.verified_at = site.verified_at or now
             site.verification_method = method
             site.last_verified_at = now
@@ -170,6 +172,7 @@ async def schedule_due_scans(
             site.verify_failures = 0
             site.last_verified_at = now
             scan = new_scan(normalize_target(site.domain), site.domain, site_id=site.id, ip=None)
+            events.record(session, events.SCAN_STARTED, user_id=site.owner_id, kind="scheduled")
             session.add(scan)
             site.next_scan_at = now + SCAN_INTERVAL
             started.append(scan.id)

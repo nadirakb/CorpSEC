@@ -240,5 +240,42 @@ class AuditLog(Base):
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class AnalyticsEvent(Base):
+    """First-party product analytics (spec §18 metrics). No cookies and no IP addresses:
+    ``visitor`` is a hash that changes every day, so visits can be counted but not followed
+    from one day to the next. Kept 13 months (retention.py)."""
+
+    __tablename__ = "events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    name: Mapped[str] = mapped_column(String(40))
+    visitor: Mapped[str | None] = mapped_column(String(16))
+    user_id: Mapped[str | None] = mapped_column(String(40))
+    """Not a foreign key: events outlive accounts, and account deletion clears it."""
+    props: Mapped[dict[str, Any]] = mapped_column(default=dict)
+
+    __table_args__ = (Index("ix_events_name_at", "name", "at"),)
+
+
+class FindingFeedback(TimestampMixin, Base):
+    """ "This looks wrong" reports from report viewers (the trust metric, spec §18)."""
+
+    __tablename__ = "finding_feedback"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    finding_id: Mapped[str | None] = mapped_column(
+        ForeignKey("findings.id", ondelete="SET NULL"), index=True
+    )
+    check_id: Mapped[str] = mapped_column(String(16), index=True)
+    check_version: Mapped[str] = mapped_column(String(16))
+    reason: Mapped[str] = mapped_column(String(32))
+    note: Mapped[str | None] = mapped_column(Text)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    evidence: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    """Copied so the report survives the 7-day purge of anonymous scans."""
+    resolved: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+
 def make_engine(url: str) -> AsyncEngine:
     return create_async_engine(url, pool_pre_ping=True)

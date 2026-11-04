@@ -91,6 +91,7 @@ Step-by-step guide for one Docker host with automatic HTTPS, backups and restore
 - `CORPSEC_WEB_URL`: the public address; `CORPSEC_EXTRA_ORIGINS` for any other address the web app is served from. Writes from other origins are refused.
 - `CORPSEC_SECRET_KEY`: long random value (signs opt-out records). With `CORPSEC_ENVIRONMENT=production` the API and worker refuse to start on development defaults (secret key, `http://` web address, missing SMTP, development database password).
 - Rate limits (`CORPSEC_ANON_SCANS_PER_HOUR`, `CORPSEC_USER_SCANS_PER_DAY`, `CORPSEC_MAX_SITES_PER_USER`, …) are shared across API processes through Redis.
+- Operator dashboard: set `CORPSEC_ADMIN_EMAILS` (JSON list) and open `/admin` while signed in with one of them: launch goals (spec §18), checks per day, funnel, failing checks and "This looks wrong" reports. Optional: `CORPSEC_METRICS_TOKEN` turns on `GET /metrics` for Prometheus, `CORPSEC_SENTRY_DSN` sends errors to Sentry or GlitchTip.
 - The privacy page and terms are drafts and must be reviewed by a lawyer. The production Caddyfile serves `security.txt` with `CORPSEC_SECURITY_CONTACT`.
 
 ### WordPress vulnerability data (Wordfence)
@@ -99,7 +100,9 @@ WordPress core and plugin vulnerabilities come from the [Wordfence Intelligence]
 
 1. Create a free account at wordfence.com and generate a key under **Account → Integrations**.
 2. Put it in your environment or in `deploy/.env` (gitignored): `CORPSEC_WORDFENCE_API_KEY=…`
-3. Re-run `corpsec-intel-sync` (or restart the compose stack). The worker also refreshes the snapshot every night at 02:41 UTC when `CORPSEC_INTEL_PATH` is set; a source that fails keeps the previous night's data.
+3. Re-run `corpsec-intel-sync` (or restart the compose stack).
+
+If the operator dashboard shows vulnerability data older than 48 hours on a compose stack created before the API image switched to a non-root user, the `intel` volume is still owned by root. Fix it once with `docker run --rm -v corpsec_intel:/data alpine chown -R 10001 /data`. The worker also refreshes the snapshot every night at 02:41 UTC when `CORPSEC_INTEL_PATH` is set; a source that fails keeps the previous night's data.
 
 Without a key the sync skips this source and WordPress vulnerability checks stay silent. The licence requires showing a link to each Wordfence record and the Defiant (and, for CVEs, MITRE) copyright notices wherever the data is displayed; findings carry them in their evidence.
 
