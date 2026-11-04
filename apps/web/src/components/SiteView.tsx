@@ -10,6 +10,7 @@ import { t } from "@/lib/i18n";
 import { gradeTone } from "@/lib/report";
 
 import { GradeBadge } from "./GradeBadge";
+import { SiteInsights } from "./SiteInsights";
 import { ScanSkeleton } from "./ScanView";
 import { VerifyWizard } from "./VerifyWizard";
 
@@ -151,6 +152,8 @@ export function SiteView({ params }: { params: Promise<{ id: string }> }) {
           </ol>
         )}
       </section>
+
+      <SiteInsights siteId={site.id} platformName={site.platform ? t.platforms[site.platform] : null} />
 
       {site.alerts.length > 0 && (
         <section aria-labelledby="alerts-heading">

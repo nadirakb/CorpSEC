@@ -20,7 +20,7 @@ def stage_lookup(checks: Sequence[Check]) -> Callable[[str], Stage | None]:
     return stages.get
 
 
-def _effort(check_id: str) -> int:
+def effort_minutes(check_id: str) -> int:
     t = template_for(check_id)
     return t.effort_minutes if t and t.effort_minutes else 30
 
@@ -31,7 +31,7 @@ def _steps(check_id: str) -> int:
 
 
 def grade_findings(findings: Sequence[Finding], checks: Sequence[Check]) -> GradeReport:
-    return grade(findings, stage_lookup(checks), effort_of=_effort, steps_of=_steps)
+    return grade(findings, stage_lookup(checks), effort_of=effort_minutes, steps_of=_steps)
 
 
 def apply_grade(scan: Scan, report: GradeReport) -> None:

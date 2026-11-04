@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from corpsec_api import account, admin, auth, emails, events, optout, sites
+from corpsec_api import account, admin, auth, emails, events, insights, optout, sites
 from corpsec_api.db import (
     AuditLog,
     FindingFeedback,
@@ -220,6 +220,7 @@ def create_app(
     app.state.limiter = limiter or (MemoryRateLimiter() if queue is not None else None)
     checks = load_checks()
     app.include_router(auth.router)
+    app.include_router(insights.router)  # before sites: /v1/sites/{id}/trends etc.
     app.include_router(sites.router)
     app.include_router(optout.router)
     app.include_router(account.router)
