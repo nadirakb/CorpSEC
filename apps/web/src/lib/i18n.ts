@@ -66,7 +66,7 @@ export const en = {
       },
       {
         h: "How to recognise us",
-        p: ["Our requests use the user agent CorpSEC/0.1 (+https://corpsec.app/bot)."],
+        p: ["Our requests use a user agent that starts with CorpSEC/0.1 and links to this page."],
       },
     ],
     optoutTitle: "Ask CorpSEC not to check your domain",

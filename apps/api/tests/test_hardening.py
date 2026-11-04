@@ -5,6 +5,7 @@ from datetime import timedelta
 from typing import Any
 
 import httpx
+import pytest
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -221,3 +222,38 @@ async def test_api_security_headers(client: httpx.AsyncClient) -> None:
     assert r.headers["x-content-type-options"] == "nosniff"
     assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
     assert r.headers["referrer-policy"] == "no-referrer"
+
+
+def test_production_refuses_development_defaults() -> None:
+    dev = Settings(environment="production", smtp_host="mailpit")
+    with pytest.raises(RuntimeError) as err:
+        dev.check_production()
+    message = str(err.value)
+    for name in ("SECRET_KEY", "WEB_URL", "SMTP_HOST", "DATABASE_URL"):
+        assert name in message
+
+    ok = Settings(
+        environment="production",
+        secret_key="x" * 40,
+        web_url="https://corpsec.example",
+        smtp_host="smtp.example",
+        database_url="postgresql+asyncpg://corpsec:s3cret@postgres:5432/corpsec",
+    )
+    ok.check_production()  # no exception
+    # development never refuses
+    Settings().check_production()
+
+
+def test_scanner_user_agent_points_at_this_deployment() -> None:
+    from corpsec_api.worker import scan_options
+    from corpsec_scanner.intel import EMPTY_SNAPSHOT
+
+    class Intel:
+        def get(self) -> object:
+            return EMPTY_SNAPSHOT
+
+    ctx = {"settings": Settings(web_url="https://scan.example/"), "intel": Intel()}
+    options = scan_options(ctx)
+    assert options.http_policy.user_agent == "CorpSEC/0.1 (+https://scan.example/bot)"
+    assert options.external_http_policy.user_agent == options.http_policy.user_agent
+    assert options.external_http_policy.max_requests == 10

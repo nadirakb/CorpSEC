@@ -6,3 +6,4 @@ __pycache__/
 .ruff_cache/
 .env
 node_modules/
+deploy/production/backups/

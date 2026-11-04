@@ -84,12 +84,14 @@ Put the variables in the API's environment, or in `deploy/.env` (gitignored) for
 
 ### Running in production
 
+Step-by-step guide for one Docker host with automatic HTTPS, backups and restore: [docs/DEPLOY.md](docs/DEPLOY.md) (files in `deploy/production/`). Notes:
+
 - Put CorpSEC behind a reverse proxy that **overwrites** `X-Forwarded-For` with the real client address (the included [Caddyfile](deploy/Caddyfile) does). Rate limits depend on it: the Next.js rewrite forwards whatever client header it receives and adds none of its own.
 - `CORPSEC_TRUSTED_PROXIES`: JSON list of networks allowed to tell the API the client address (the web app's network).
 - `CORPSEC_WEB_URL`: the public address; `CORPSEC_EXTRA_ORIGINS` for any other address the web app is served from. Writes from other origins are refused.
-- `CORPSEC_SECRET_KEY`: long random value (signs opt-out records). The API logs a warning if it's left at the development default.
+- `CORPSEC_SECRET_KEY`: long random value (signs opt-out records). With `CORPSEC_ENVIRONMENT=production` the API and worker refuse to start on development defaults (secret key, `http://` web address, missing SMTP, development database password).
 - Rate limits (`CORPSEC_ANON_SCANS_PER_HOUR`, `CORPSEC_USER_SCANS_PER_DAY`, `CORPSEC_MAX_SITES_PER_USER`, …) are shared across API processes through Redis.
-- The privacy page and terms are drafts and must be reviewed by a lawyer; `security@corpsec.app` in `apps/web/public/.well-known/security.txt` is a placeholder.
+- The privacy page and terms are drafts and must be reviewed by a lawyer. The production Caddyfile serves `security.txt` with `CORPSEC_SECURITY_CONTACT`.
 
 ### WordPress vulnerability data (Wordfence)
 
@@ -137,4 +139,5 @@ docker compose -f deploy/lab/compose.yml down -v
 ## Documentation
 
 - [MVP specification](docs/MVP-SPEC.md)
+- [Deploying to production](docs/DEPLOY.md)
 - [Finding JSON Schema](schemas/finding.schema.json)

@@ -1,0 +1,39 @@
+# Public entry point. Caddy gets and renews the HTTPS certificate for CORPSEC_DOMAIN by itself
+# (ports 80 and 443 must be open and the domain's A/AAAA records must point at this server).
+#
+# X-Forwarded-For: with no trusted_proxies configured, Caddy replaces whatever the client sent
+# with the real address, so the API's rate limits can rely on it.
+{
+	email {$CORPSEC_ACME_EMAIL}
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+www.{$CORPSEC_DOMAIN} {
+	redir https://{$CORPSEC_DOMAIN}{uri} permanent
+}
+
+{$CORPSEC_DOMAIN} {
+	encode zstd gzip
+	header -Server
+
+	# Security contact (RFC 9116) from the environment, so no placeholder ships.
+	handle /.well-known/security.txt {
+		header Content-Type "text/plain; charset=utf-8"
+		respond <<TXT
+			Contact: mailto:{$CORPSEC_SECURITY_CONTACT}
+			Expires: 2027-11-01T00:00:00Z
+			Preferred-Languages: en
+			Policy: https://{$CORPSEC_DOMAIN}/bot
+
+			TXT 200
+	}
+
+	handle {
+		reverse_proxy web:3000 {
+			# Server-Sent Events: forward immediately, never buffer
+			flush_interval -1
+		}
+	}
+}
