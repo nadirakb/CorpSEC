@@ -19,6 +19,19 @@ class Settings(BaseSettings):
     refreshes it nightly."""
     wordfence_api_key: str | None = None
     """``CORPSEC_WORDFENCE_API_KEY``: WordPress vulnerabilities in the nightly refresh."""
+    spamhaus_dqs_key: str | None = None
+    """Spamhaus Data Query Service key for the blocklist checks (REP-001/002). Without it the
+    free public servers are used, which allow only low-volume, non-commercial use and refuse
+    queries from big public DNS resolvers."""
+    internetdb_enabled: bool = False
+    """Open-port check (PORT-001) from Shodan InternetDB. Off until its terms are confirmed
+    for how this deployment is offered."""
+
+    def check_config(self) -> dict[str, str]:
+        config = {"internetdb": "on" if self.internetdb_enabled else "off"}
+        if self.spamhaus_dqs_key:
+            config["spamhaus_dqs_key"] = self.spamhaus_dqs_key
+        return config
 
     web_url: str = "http://localhost:3000"
     """Public address of the web app, used in emailed links. Its origin may make writes."""

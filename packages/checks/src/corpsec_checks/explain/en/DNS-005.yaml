@@ -1,0 +1,18 @@
+check_id: DNS-005
+title: "Old or test copies of your site are still online"
+pass_title: "No old or test copies of your site are online"
+summary: "Public records list {{subdomains_found|some}} sub-addresses of {{domain}}. Some look like old or test sites that still work, such as {{first_test_site|a test site}}."
+analogy: "It is like an old back door you forgot about. Nobody checks it, so it is easy to get in."
+why_it_matters:
+  - "Test and old sites rarely get updates, so they are easy to break into."
+  - "They can hold real customer data or passwords copied from the main site."
+  - "Anyone can look up these addresses, because every security certificate is made public."
+fix:
+  default:
+    - "Look at each address in the details below and ask: do we still need it?"
+    - "If not, turn the site off and delete its address at the company that runs your domain."
+    - "If you need it, protect it with a password and keep it as up to date as the main site."
+effort_minutes: 30
+who_can_fix: "Your web developer or IT person."
+technical: "Certificate Transparency (crt.sh) lists {{subdomains_found}} names; dev/test/staging-like names still resolve: {{first_test_site}}."
+variables: [subdomains_found, first_test_site]

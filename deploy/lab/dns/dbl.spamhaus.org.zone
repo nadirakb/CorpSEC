@@ -1,0 +1,8 @@
+; Stand-in for the Spamhaus Domain Block List: the broken site is listed for phishing
+; (REP-001); any other name is NXDOMAIN, which means "not listed".
+$ORIGIN dbl.spamhaus.org.
+$TTL 60
+@   IN SOA ns.dbl.spamhaus.org. admin.dbl.spamhaus.org. 1 3600 600 86400 60
+@   IN NS  ns.dbl.spamhaus.org.
+ns  IN A   172.30.0.53
+corpsec-lab-bad.com  IN A 127.0.1.4

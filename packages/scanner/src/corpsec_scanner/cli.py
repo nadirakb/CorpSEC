@@ -29,13 +29,21 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("CORPSEC_INTEL_PATH"),
         help="intel snapshot from corpsec-intel-sync (default: $CORPSEC_INTEL_PATH)",
     )
+    parser.add_argument(
+        "--config",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="check setting, e.g. internetdb=on or spamhaus_dqs_key=... (repeatable)",
+    )
     args = parser.parse_args(argv)
+    config = dict(item.split("=", 1) for item in args.config if "=" in item)
     try:
         target = normalize_target(args.target)
     except InvalidTargetError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    options = ScanOptions(intel=load_snapshot(args.intel))
+    options = ScanOptions(intel=load_snapshot(args.intel), check_config=config)
     if options.intel.empty:
         print("note: no intel snapshot; software vulnerability checks are skipped", file=sys.stderr)
     result = asyncio.run(run_scan(target, load_checks(), options=options, on_progress=_progress))

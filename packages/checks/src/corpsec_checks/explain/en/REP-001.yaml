@@ -1,0 +1,17 @@
+check_id: REP-001
+title: "Your domain is on a blocklist for {{reason|bad activity}}"
+pass_title: "Your domain is not on a blocklist"
+summary: "Spamhaus, a widely used blocklist, lists {{item|your domain}} for {{reason|bad activity}}. Email from you may be blocked, and some browsers and firewalls may block your site."
+analogy: "It is like your shop being on a list of places to avoid. Many people will not come in."
+why_it_matters:
+  - "Listings for phishing or malware often mean your site was hacked and is used to attack others."
+  - "Customers may not get your emails, and some networks will block your site."
+fix:
+  default:
+    - "Open the Spamhaus link in the details below to see why you are listed."
+    - "If your site was hacked, ask your web developer to clean it and change all passwords."
+    - "When the problem is fixed, ask Spamhaus to remove the listing on that same page."
+effort_minutes: 120
+who_can_fix: "Your web developer or IT person."
+technical: "{{item}} listed in Spamhaus DBL ({{reason}}); return codes {{codes}}."
+variables: [reason, codes]

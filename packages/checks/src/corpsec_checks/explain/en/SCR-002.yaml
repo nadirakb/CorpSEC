@@ -1,0 +1,20 @@
+check_id: SCR-002
+title: "Your site loads code from a hacked code site"
+pass_title: "Your site doesn't load code from known hacked code sites"
+summary: "Your site loads a file from {{source|a code site}}. That site was taken over by criminals and has sent harmful code to the sites that used it."
+analogy: "It is like a delivery company that was bought by thieves. They still come to your door."
+why_it_matters:
+  - "The owner of that site can send your visitors to scams or steal what they type."
+  - "Search engines may mark your site as unsafe."
+fix:
+  default:
+    - "Ask your web developer to remove {{source|that site}} from your website's code."
+    - "Modern browsers rarely need this file. If needed, use a copy from a trusted site."
+    - "Search the whole site for that name, including themes and plugins."
+  wordpress:
+    - "Find the plugin or theme that loads {{source|that site}} and update or remove it."
+    - "Search your theme settings for the name too."
+effort_minutes: 30
+who_can_fix: "Your web developer."
+technical: "Script loaded from {{source}} (polyfill.io supply-chain compromise, 2024): {{script}}."
+variables: [source, script]

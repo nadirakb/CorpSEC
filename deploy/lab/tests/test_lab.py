@@ -106,6 +106,7 @@ EXPECTED_BAD = {
     ("EXP-001", C), ("EXP-002", C), ("EXP-004", C), ("EXP-005", H), ("EXP-009", M),
     ("DNS-002", L), ("DNS-003", L), ("DNS-004", H),
     ("MAIL-001", INFO), ("MAIL-003", C), ("MAIL-004", H), ("MAIL-006", M), ("MAIL-008", INFO),
+    ("MAIL-009", INFO), ("REP-001", H), ("SCR-001", L), ("SCR-002", H),
 }  # fmt: skip
 # Depends on which legacy suites the lab's OpenSSL build still ships.
 OPTIONAL_BAD = {("TLS-005", H)}

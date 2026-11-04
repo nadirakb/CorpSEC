@@ -22,13 +22,18 @@ class FakeDns(DnsClient):
         self,
         records: dict[tuple[str, str], list[str]] | None = None,
         nxdomain: set[str] | None = None,
+        *,
+        unknown_nxdomain: bool = False,
     ) -> None:
         super().__init__(nameservers=["192.0.2.1"])
         self.records = records or {}
         self.nxdomain = nxdomain or set()
+        self.unknown_nxdomain = unknown_nxdomain
+        """Names without any record don't exist (like the real internet)."""
 
     async def _lookup(self, name: str, rdtype: str) -> DnsAnswer:
-        if name in self.nxdomain:
+        known = any(n == name for n, _ in self.records)
+        if name in self.nxdomain or (self.unknown_nxdomain and not known):
             return DnsAnswer(records=(), nxdomain=True)
         return DnsAnswer(records=tuple(self.records.get((name, rdtype), [])))
 

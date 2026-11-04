@@ -12,11 +12,11 @@ It is inspired by professional tools such as OWASP ZAP, Nmap, OpenVAS, Burp Suit
 
 | Area | Examples |
 |---|---|
-| Connection | HTTPS available, HTTP → HTTPS redirect, mixed content |
+| Connection | HTTPS available, HTTP → HTTPS redirect, mixed content, risky open services (databases, remote desktop) |
 | Encryption | Certificate validity and expiry, old TLS versions, weak ciphers, HSTS |
-| Website settings | Security headers, cookie flags, CORS, directory listing, exposed `.git` / `.env` / backups |
+| Website settings | Security headers, cookie flags, CORS, directory listing, exposed `.git` / `.env` / backups, unpinned or compromised third-party code |
 | Software | CMS / plugin / JS library versions with known vulnerabilities |
-| Email & domain | SPF, DKIM, DMARC, domain expiry, DNSSEC, subdomain takeover |
+| Email & domain | SPF, DKIM, DMARC, BIMI, domain expiry, DNSSEC, subdomain takeover, forgotten test sites (certificate logs), look-alike domains, spam/phishing blocklists |
 
 All MVP checks are **passive**: CorpSEC behaves like an ordinary visitor and never sends attack payloads. See [docs/MVP-SPEC.md §5](docs/MVP-SPEC.md#5-scan-scope-and-safety-envelope-mvp).
 

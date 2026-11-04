@@ -5,6 +5,7 @@ from corpsec_checks.connection.conn_002 import HttpRedirectsToHttps
 from corpsec_checks.connection.conn_003 import ApexAndWwwAgree
 from corpsec_checks.connection.conn_004 import NoMixedContent
 from corpsec_checks.connection.crawl_001 import Crawler
+from corpsec_checks.connection.port_001 import RiskyOpenPorts
 from corpsec_checks.exposure.exp_001 import GitExposed
 from corpsec_checks.exposure.exp_002 import EnvFileExposed
 from corpsec_checks.exposure.exp_003 import WpConfigBackupExposed
@@ -18,6 +19,8 @@ from corpsec_checks.mail.dns_001 import DomainExpiry
 from corpsec_checks.mail.dns_002 import Dnssec
 from corpsec_checks.mail.dns_003 import Caa
 from corpsec_checks.mail.dns_004 import SubdomainTakeover
+from corpsec_checks.mail.dns_005 import CertificateTransparency
+from corpsec_checks.mail.dns_006 import LookalikeDomains
 from corpsec_checks.mail.mail_001 import MailServers
 from corpsec_checks.mail.mail_002 import SpfValid
 from corpsec_checks.mail.mail_003 import SpfAllQualifier
@@ -26,6 +29,9 @@ from corpsec_checks.mail.mail_005 import DmarcEnforced
 from corpsec_checks.mail.mail_006 import DkimFound
 from corpsec_checks.mail.mail_007 import NonSendingDomainLocked
 from corpsec_checks.mail.mail_008 import MtaSts
+from corpsec_checks.mail.mail_009 import Bimi
+from corpsec_checks.reputation.rep_001 import DomainBlocklist
+from corpsec_checks.reputation.rep_002 import MailServerBlocklist
 from corpsec_checks.software.sw_001 import PlatformDetected
 from corpsec_checks.software.sw_002 import CmsUpToDate
 from corpsec_checks.software.sw_003 import KnownVulnerableVersion
@@ -55,6 +61,8 @@ from corpsec_checks.website.hdr_003 import NoSniff
 from corpsec_checks.website.hdr_004 import ReferrerPolicy
 from corpsec_checks.website.hdr_005 import PermissionsPolicy
 from corpsec_checks.website.hdr_006 import VersionBanners
+from corpsec_checks.website.scr_001 import SubresourceIntegrity
+from corpsec_checks.website.scr_002 import CompromisedScriptSource
 from corpsec_checks.website.sec_001 import SecurityTxt
 from corpsec_scanner import Check
 
@@ -85,6 +93,8 @@ CHECKS: tuple[type[Check], ...] = (
     DirectoryListing,
     VerboseErrors,
     SecurityTxt,
+    SubresourceIntegrity,
+    CompromisedScriptSource,
     PlatformDetected,
     CmsUpToDate,
     KnownVulnerableVersion,
@@ -107,6 +117,8 @@ CHECKS: tuple[type[Check], ...] = (
     Dnssec,
     Caa,
     SubdomainTakeover,
+    CertificateTransparency,
+    LookalikeDomains,
     MailServers,
     SpfValid,
     SpfAllQualifier,
@@ -115,6 +127,10 @@ CHECKS: tuple[type[Check], ...] = (
     DkimFound,
     NonSendingDomainLocked,
     MtaSts,
+    Bimi,
+    DomainBlocklist,
+    MailServerBlocklist,
+    RiskyOpenPorts,
 )
 
 __all__ = ["CHECKS"]

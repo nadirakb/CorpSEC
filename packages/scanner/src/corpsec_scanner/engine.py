@@ -6,7 +6,7 @@ from __future__ import annotations
 import asyncio
 import socket
 import time
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from corpsec_scanner.check import Check
@@ -51,6 +51,8 @@ class ScanOptions:
     intel: IntelSnapshot = field(default_factory=lambda: EMPTY_SNAPSHOT)
     preflight: bool = True
     """Resolve the target and refuse non-public addresses before running any check."""
+    check_config: Mapping[str, str] = field(default_factory=dict)
+    """Deployment settings for individual checks (e.g. a blocklist licence key)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +166,7 @@ async def run_scan(
         tls=opts.tls or TlsProber(opts.net),
         external=external,
         intel=opts.intel,
+        config=opts.check_config,
     )
     runs: dict[str, CheckRun] = {}
     findings: list[Finding] = []

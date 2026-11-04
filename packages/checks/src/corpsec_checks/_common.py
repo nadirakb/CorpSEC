@@ -16,6 +16,7 @@ FACT_TLS = "tls.info"  # TlsInfo (TLS-001)
 FACT_FINGERPRINTS = "software.fingerprints"  # list[Fingerprint] (SW-001)
 FACT_MX = "mail.mx"  # list[str] MX hostnames, empty = no email (MAIL-001)
 FACT_MAIL_PROVIDER = "mail.provider"  # str | None (MAIL-001)
+FACT_SUBDOMAINS = "dns.subdomains"  # list[str] from certificate transparency logs (DNS-005)
 
 EvidenceKind = Literal["http", "tls", "dns", "rdap", "fingerprint"]
 

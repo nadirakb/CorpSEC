@@ -261,8 +261,23 @@ Soft-404 guard: before probing, request a random path (`/corpsec-<random>`). If 
 | `MAIL-006` | DKIM key found for common selectors of detected provider (`google`, `selector1/2`, `k1`, `default`, …) | medium (absence is "not found", not "missing" — §8.3) |
 | `MAIL-007` | Non-sending domain (no MX) has `v=spf1 -all` and `p=reject` DMARC | medium |
 | `MAIL-008` | MTA-STS / TLS-RPT present | info |
+| `MAIL-009` | BIMI record (brand logo in inboxes) *(added after MVP)* | info |
+| `DNS-005` | Certificate Transparency (crt.sh): sub-addresses listed in public certificate logs; dev/test/staging/old-looking names that still resolve. Feeds `DNS-004`. *(added after MVP)* | low |
+| `DNS-006` | Registered look-alike domains (other endings, look-alike letters, typos, `-login`/`-secure` suffixes; wildcard endings skipped; same name servers → "probably yours"). Never affects the grade. *(added after MVP)* | info |
+| `REP-001` | Domain/host on the Spamhaus Domain Block List (phishing, malware, botnet → high; spam → medium). Refused answers (`127.255.255.x`) are inconclusive, never "clean". *(added after MVP)* | high/medium |
+| `REP-002` | Self-hosted mail server IPs on Spamhaus ZEN (SBL/CSS/XBL/DROP; PBL ignored; hosted providers skipped) *(added after MVP)* | medium |
+
+*Blocklist licensing:* Spamhaus's public mirrors are free only for low-volume, non-commercial use and refuse queries arriving through large public resolvers. A commercial deployment sets `CORPSEC_SPAMHAUS_DQS_KEY` (Data Query Service); the key is never written into evidence.
 
 **Plain-language framing for Stage 5:** "Can someone send fake emails pretending to be you?" → Yes / Partly / No.
+
+### 6.6b Third-party code and open services *(added after MVP)*
+
+| ID | Check | Severity if failed |
+|---|---|---|
+| `SCR-001` | Scripts/stylesheets from public CDNs (cdnjs, jsDelivr, unpkg, code.jquery.com, …) without Subresource Integrity. Dynamic third parties (analytics, chat) are listed but not flagged: they can't be pinned. | low |
+| `SCR-002` | Scripts from code hosts known to have been taken over (polyfill.io and the same operator's bootcss/bootcdn/staticfile, 2024) | high |
+| `PORT-001` | Risky services open to the internet (databases, RDP, SMB, VNC, Telnet, Docker, …) read from Shodan InternetDB — CorpSEC never probes ports itself. Off unless `CORPSEC_INTERNETDB_ENABLED=true` (confirm the data's terms for your offering). Confidence "likely": the data can be days old. | high (Docker → critical, FTP → medium) |
 
 ### 6.7 Check versioning
 

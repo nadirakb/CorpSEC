@@ -1,0 +1,21 @@
+check_id: SCR-001
+title: "Code from other websites is not locked"
+pass_title: "Code from other websites is locked or not used"
+summary: "Your site loads {{count|some}} code files from public code sites, like {{example|a public code site}}, without a lock that stops them from being changed."
+analogy: "It is like taking parts from a supplier without checking the seal on the box."
+why_it_matters:
+  - "If that code site is hacked, the bad code runs on your site for every visitor."
+  - "It could steal what visitors type, like passwords or card numbers."
+  - "A lock (called an integrity check) makes the browser refuse a changed file."
+fix:
+  default:
+    - "Ask your web developer to add an integrity check to each file listed below."
+    - "Most code sites show a ready-made line with the integrity check you can copy."
+    - "Or keep a copy of the files on your own site instead."
+  wordpress:
+    - "Update your theme and plugins. Most load these files from your own site."
+    - "If the file comes from your theme, ask its maker to add an integrity check."
+effort_minutes: 30
+who_can_fix: "Your web developer."
+technical: "Third-party scripts/stylesheets from public CDNs without Subresource Integrity, e.g. {{example}}."
+variables: [count, example]
