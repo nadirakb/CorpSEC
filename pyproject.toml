@@ -59,6 +59,7 @@ known-first-party = [
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S104", "S105", "S106", "RUF001"]
+"docs/assets/*.py" = ["E501"]  # SVG markup templates
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

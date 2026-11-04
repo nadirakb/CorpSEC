@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/banner.png" alt="CorpSEC: website and email security checks anyone can understand" width="100%">
+</p>
+
 # CorpSEC
 
 **Website and email security checks that anyone can understand.**
