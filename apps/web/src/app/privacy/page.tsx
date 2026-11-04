@@ -12,6 +12,7 @@ const SECTIONS = [
     "For each check: the address it came from, kept for one year to stop abuse.",
     "Usage counts, like which pages are opened and how many checks run. We count visitors with a code that changes every day, so we can't follow you from one day to the next. No cookies, no addresses, no outside services. Kept 13 months.",
     "If you tell us a result looks wrong: your note and the technical details of that result.",
+    "To show how a site compares with others, we keep each check's score with a code made from the site's name, never the name itself.",
   ]],
   ["How long we keep it", [
     "Checks made without an account: 7 days.",

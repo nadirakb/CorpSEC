@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from corpsec_api import events
 from corpsec_api.db import FindingCheck, FindingRow, Scan, Site
+from corpsec_api.insights_keys import site_key
 from corpsec_api.reporting import apply_grade, grade_findings, row_to_finding
+from corpsec_api.settings import get_settings
 from corpsec_scanner import Check, ScanOptions, ScanResult, ScanStatus, Severity, run_scan
 from corpsec_scanner.engine import ProgressCallback
 from corpsec_scanner.models import CheckRunStatus, FindingStatus, new_id, utcnow
@@ -108,6 +110,9 @@ async def _record_finished(session: AsyncSession, scan: Scan, result: ScanResult
         if result.finished_at and scan.started_at
         else None
     )
+    platform = next(
+        (f.context["platform"] for f in result.findings if f.context.get("platform")), None
+    )
     events.record(
         session,
         events.SCAN_FINISHED,
@@ -115,6 +120,10 @@ async def _record_finished(session: AsyncSession, scan: Scan, result: ScanResult
         kind="site" if scan.site_id else "anonymous",
         status=str(result.status),
         grade=scan.grade,
+        score=scan.score,
+        platform=platform,
+        # counts each site once in benchmarks without storing its name
+        site_key=site_key(get_settings().secret_key, scan.registrable_domain),
         duration_s=round(duration, 1) if duration is not None else None,
         problems=len(problems),
         problem_checks=sorted({f.check_id for f in problems}),

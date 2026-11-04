@@ -178,6 +178,75 @@ export interface SiteDetail extends Site {
 
 export type VerifyMethod = "dns" | "file" | "meta";
 
+export interface TrendPoint {
+  scan_id: string;
+  finished_at: string;
+  score: number | null;
+  grade: string | null;
+  /** Stage -> letter. */
+  stages: Partial<Record<Stage, string>>;
+  open_problems: number;
+}
+
+export interface Trends {
+  points: TrendPoint[];
+  fixed_count: number;
+  median_days_to_fix: number | null;
+  open_now: number;
+}
+
+export interface Benchmark {
+  score: number | null;
+  platform: Platform | null;
+  sample: number;
+  /** Share of compared sites with a lower score; null when there aren't enough. */
+  better_than: number | null;
+}
+
+export interface ProblemLine {
+  check_id: string;
+  title: string;
+  severity: Severity;
+  item: string;
+}
+
+export interface MonthlyReport {
+  domain: string;
+  month: string;
+  scans: number;
+  start_grade: string | null;
+  end_grade: string | null;
+  start_score: number | null;
+  end_score: number | null;
+  fixed: ProblemLine[];
+  new: ProblemLine[];
+  open_at_end: ProblemLine[];
+  alerts: { kind: string; at: string }[];
+}
+
+export interface Portfolio {
+  sites: {
+    id: string;
+    domain: string;
+    grade: string | null;
+    score: number | null;
+    open_by_severity: Partial<Record<Severity, number>>;
+    last_checked: string | null;
+  }[];
+  average_score: number | null;
+  open_serious: number;
+  fix_first: {
+    site_id: string;
+    domain: string;
+    scan_id: string;
+    finding_id: string;
+    check_id: string;
+    title: string;
+    severity: Severity;
+    effort: string;
+  }[];
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -295,6 +364,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ method }),
     }),
+  trends: (id: string) => request<Trends>(`/sites/${encodeURIComponent(id)}/trends`),
+  benchmark: (id: string) => request<Benchmark>(`/sites/${encodeURIComponent(id)}/benchmark`),
+  monthly: (id: string, month: string) =>
+    request<MonthlyReport>(`/sites/${encodeURIComponent(id)}/monthly?month=${encodeURIComponent(month)}`),
+  portfolio: () => request<Portfolio>("/portfolio"),
   scanSite: (id: string) =>
     request<ScanSummary>(`/sites/${encodeURIComponent(id)}/scans`, { method: "POST" }),
 };

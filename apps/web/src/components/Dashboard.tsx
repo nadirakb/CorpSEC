@@ -9,6 +9,7 @@ import { formatDate } from "@/lib/dates";
 import { t } from "@/lib/i18n";
 
 import { GradeBadge } from "./GradeBadge";
+import { PortfolioOverview } from "./Portfolio";
 
 const PLATFORMS: Platform[] = ["wordpress", "shopify", "wix", "squarespace", "webflow", "joomla", "drupal", "custom", "unknown"];
 const ORDER = ["A+", "A", "B", "C", "D", "F"];
@@ -54,6 +55,8 @@ export function Dashboard() {
       </header>
 
       {error && <p role="alert" className="font-medium text-[var(--sev-critical)]">{error}</p>}
+
+      {sites && <PortfolioOverview refreshKey={sites.length} />}
 
       {sites && (
         <section aria-label={t.dashboard.title}>
