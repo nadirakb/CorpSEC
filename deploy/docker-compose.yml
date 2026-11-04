@@ -15,6 +15,8 @@ x-app: &app
     # Optional: WordPress vulnerabilities from Wordfence. Put it in deploy/.env (gitignored).
     CORPSEC_WORDFENCE_API_KEY: ${CORPSEC_WORDFENCE_API_KEY:-}
     CORPSEC_WEB_URL: http://localhost:8088
+    # Who sees the operator dashboard at /admin, e.g. '["you@example.com"]'
+    CORPSEC_ADMIN_EMAILS: ${CORPSEC_ADMIN_EMAILS:-[]}
     CORPSEC_EXTRA_ORIGINS: '["http://localhost:3000"]'
     # Development mail catcher: read sign-in links and alerts at http://localhost:8025
     CORPSEC_SMTP_HOST: mailpit

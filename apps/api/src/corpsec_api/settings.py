@@ -60,6 +60,16 @@ class Settings(BaseSettings):
     microsoft_tenant: str = "common"
     """``common`` accepts work, school and personal accounts; a tenant id limits it to one org."""
 
+    admin_emails: list[str] = []
+    """``CORPSEC_ADMIN_EMAILS='["you@example.com"]'``: who sees the operator dashboard."""
+    metrics_token: str | None = None
+    """Bearer token for ``GET /metrics`` (Prometheus). Without it the endpoint is off."""
+    sentry_dsn: str | None = None
+    """Error tracking (Sentry or a self-hosted GlitchTip). No personal data is sent."""
+
+    def is_admin(self, email: str) -> bool:
+        return email.lower() in {e.lower() for e in self.admin_emails}
+
     secret_key: str = DEV_SECRET
     """Signs opt-out tokens. Must be set to a long random value in production."""
     trusted_proxies: list[str] = ["127.0.0.1/32", "::1/128"]

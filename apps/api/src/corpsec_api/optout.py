@@ -10,6 +10,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from corpsec_api import events
 from corpsec_api.db import AuditLog, OptOut
 from corpsec_api.deps import SessionDep, client_ip
 from corpsec_api.policy import OPTOUT_PREFIX, is_opted_out, optout_token
@@ -67,5 +68,6 @@ async def confirm_optout(body: OptOutIn, request: Request, session: SessionDep) 
     if not await is_opted_out(session, d):
         session.add(OptOut(domain=d, verified_at=utcnow()))
         session.add(AuditLog(actor_ip=client_ip(request), action="optout", target=d))
+        events.record(session, events.OPTOUT_ADDED)
         await session.commit()
     return OptOutInfo(domain=d, txt_name=d, txt_value=expected, opted_out=True)

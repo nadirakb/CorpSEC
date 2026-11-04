@@ -2,9 +2,17 @@
 
 import { useId, useState } from "react";
 
-import { type ActionResult, api, ApiError, type DismissReason, type Finding } from "@/lib/api";
+import {
+  type ActionResult,
+  api,
+  ApiError,
+  type DismissReason,
+  type FeedbackReason,
+  type Finding,
+} from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { attributions, itemLabel } from "@/lib/report";
+import { track } from "@/lib/track";
 
 import { SeverityTag } from "./SeverityTag";
 
@@ -38,7 +46,10 @@ export function FindingCard({ findings, defaultOpen = false, canAct = true, onCh
           type="button"
           aria-expanded={open}
           aria-controls={bodyId}
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => {
+            if (!open && problem) track("report.fix_opened", { check_id: finding.check_id });
+            setOpen((o) => !o);
+          }}
           className="flex w-full items-start gap-4 rounded-xl px-5 py-4 text-left hover:bg-[color-mix(in_srgb,var(--ink)_3%,transparent)]"
         >
           <span className="flex-1">
@@ -134,6 +145,7 @@ export function FindingCard({ findings, defaultOpen = false, canAct = true, onCh
         ))}
 
         {problem && canAct && <Actions findings={findings} onChanged={onChanged} />}
+        {problem && canAct && <Feedback finding={finding} />}
       </div>
     </article>
   );
@@ -334,5 +346,91 @@ function Chevron({ open }: { open: boolean }) {
     >
       <path d="M6 9l6 6 6-6" />
     </svg>
+  );
+}
+
+const FEEDBACK_REASONS: FeedbackReason[] = ["false_positive", "wrong_advice", "unclear", "other"];
+
+/** "This looks wrong": goes to the CorpSEC team, doesn't change the report. */
+function Feedback({ finding }: { finding: Finding }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<FeedbackReason>("false_positive");
+  const [note, setNote] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
+  const [error, setError] = useState<string | null>(null);
+  const noteId = useId();
+
+  if (state === "sent") {
+    return <p role="status" className="text-sm text-ink-soft">{t.feedback.thanks}</p>;
+  }
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-sm font-semibold text-ink-soft underline underline-offset-4 hover:text-ink"
+      >
+        {t.feedback.open}
+      </button>
+    );
+  }
+  return (
+    <form
+      className="space-y-3 rounded-lg border border-rule p-4 text-sm"
+      onSubmit={async (ev) => {
+        ev.preventDefault();
+        setState("sending");
+        setError(null);
+        try {
+          await api.feedback(finding.id, reason, note);
+          setState("sent");
+        } catch (err) {
+          setState("idle");
+          setError(err instanceof ApiError ? err.message : t.errors.generic);
+        }
+      }}
+    >
+      <fieldset>
+        <legend className="mb-2 font-semibold">{t.feedback.question}</legend>
+        <div className="space-y-1">
+          {FEEDBACK_REASONS.map((r) => (
+            <label key={r} className="flex items-center gap-2">
+              <input
+                type="radio"
+                name={`fb-${finding.id}`}
+                value={r}
+                checked={reason === r}
+                onChange={() => setReason(r)}
+                className="accent-[var(--accent)]"
+              />
+              {t.feedback.reasons[r]}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <label htmlFor={noteId} className="block font-semibold">{t.feedback.noteLabel}</label>
+      <textarea
+        id={noteId}
+        value={note}
+        maxLength={1000}
+        rows={3}
+        onChange={(ev) => setNote(ev.target.value)}
+        className="w-full rounded-lg border-2 border-rule bg-paper px-3 py-2"
+      />
+      <p className="text-ink-soft">{t.feedback.privacy}</p>
+      {error && <p role="alert" className="font-medium text-[var(--sev-critical)]">{error}</p>}
+      <div className="flex gap-3">
+        <button
+          type="submit"
+          disabled={state === "sending"}
+          className="rounded-lg bg-accent px-4 py-2 font-semibold text-accent-ink disabled:opacity-50"
+        >
+          {state === "sending" ? t.feedback.sending : t.feedback.send}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="font-semibold text-ink-soft">
+          {t.feedback.cancel}
+        </button>
+      </div>
+    </form>
   );
 }

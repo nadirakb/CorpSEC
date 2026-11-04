@@ -18,6 +18,7 @@ from corpsec_api.monitoring import (
     run_light_checks,
     schedule_due_scans,
 )
+from corpsec_api.observability import init_error_tracking
 from corpsec_api.progress import RedisProgressBus
 from corpsec_api.queue import SCAN_JOB
 from corpsec_api.retention import purge_old_data
@@ -62,6 +63,7 @@ def scan_options(ctx: dict[str, Any]) -> ScanOptions:
 
 async def startup(ctx: dict[str, Any]) -> None:
     get_settings().check_production()
+    init_error_tracking(get_settings(), "worker")
     engine = make_engine(get_settings().database_url)
     ctx["engine"] = engine
     ctx["sessions"] = async_sessionmaker(engine, expire_on_commit=False)

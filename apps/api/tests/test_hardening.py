@@ -261,3 +261,21 @@ def test_scanner_user_agent_points_at_this_deployment() -> None:
 
     ctx["settings"] = Settings(spamhaus_dqs_key="k", internetdb_enabled=True)
     assert scan_options(ctx).check_config == {"internetdb": "on", "spamhaus_dqs_key": "k"}
+
+
+def test_error_reports_carry_no_personal_data() -> None:
+    from corpsec_api.observability import _scrub
+
+    event = {
+        "request": {
+            "url": "https://x/v1/auth/verify",
+            "data": {"token": "abc"},
+            "cookies": {"corpsec_session": "s"},
+            "headers": {"Authorization": "Bearer t"},
+            "query_string": "token=abc",
+        },
+        "user": {"email": "leyla@bakery.az"},
+    }
+    clean = _scrub(event, None)
+    assert clean["request"] == {"url": "https://x/v1/auth/verify", "query_string": "[removed]"}
+    assert "user" not in clean

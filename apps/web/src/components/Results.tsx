@@ -5,6 +5,7 @@ import { useId, useState } from "react";
 
 import { api, ApiError, type Scan } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { track } from "@/lib/track";
 import { capApplied, fixFirst, gradeTone, groupFindings, isProblem, REDACTED_MARK, STAGES } from "@/lib/report";
 
 import { FindingCard } from "./FindingCard";
@@ -140,6 +141,7 @@ export function Results({ scan, share = null, onChanged }: Props) {
           </div>
           <Link
             href={`/login?next=${encodeURIComponent(`/dashboard?add=${scan.host}`)}`}
+            onClick={() => track("cta.signup_clicked")}
             className="mt-4 inline-block shrink-0 rounded-xl bg-accent px-6 py-3 font-semibold text-accent-ink sm:mt-0"
           >
             {t.cta.button}

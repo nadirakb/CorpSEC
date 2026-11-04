@@ -16,7 +16,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from corpsec_api import emails
+from corpsec_api import emails, events
 from corpsec_api.db import AuditLog, LoginToken, OAuthFlow, User, UserIdentity, UserSession
 from corpsec_api.deps import (
     SESSION_COOKIE,
@@ -56,6 +56,16 @@ class MeOut(BaseModel):
     id: str
     email: str
     weekly_digest: bool = False
+    is_admin: bool = False
+
+
+def me_out(user: User, settings: Settings) -> MeOut:
+    return MeOut(
+        id=user.id,
+        email=user.email,
+        weekly_digest=user.weekly_digest,
+        is_admin=settings.is_admin(user.email),
+    )
 
 
 class ProvidersOut(BaseModel):
@@ -171,12 +181,15 @@ async def verify_magic_link(
     if user is None:
         user = User(id=new_id("usr"), email=row.email)
         session.add(user)
+        events.record_request(
+            session, request, events.ACCOUNT_CREATED, user_id=user.id, method="email"
+        )
     elif user.deleted_at is not None:
         raise StarletteHTTPException(400, "This account was deleted.")
     token = start_session(session, request, user, settings, method="email")
     await session.commit()
     set_session_cookie(response, token, settings)
-    return MeOut(id=user.id, email=user.email, weekly_digest=user.weekly_digest)
+    return me_out(user, settings)
 
 
 def oauth_redirect_uri(settings: Settings, provider: str) -> str:
@@ -315,6 +328,9 @@ async def oauth_callback(
         if user is None:
             user = User(id=new_id("usr"), email=identity.email)
             session.add(user)
+            events.record_request(
+                session, request, events.ACCOUNT_CREATED, user_id=user.id, method=provider
+            )
         link = UserIdentity(
             user_id=user.id, provider=provider, subject=identity.subject, email=identity.email
         )
@@ -341,8 +357,8 @@ async def oauth_callback(
 
 
 @router.get("/me")
-async def me(user: CurrentUser) -> MeOut:
-    return MeOut(id=user.id, email=user.email, weekly_digest=user.weekly_digest)
+async def me(user: CurrentUser, settings: SettingsDep) -> MeOut:
+    return me_out(user, settings)
 
 
 @router.post("/auth/logout", status_code=204)

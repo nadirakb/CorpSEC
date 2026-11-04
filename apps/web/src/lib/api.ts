@@ -92,6 +92,48 @@ export interface Me {
   id: string;
   email: string;
   weekly_digest: boolean;
+  is_admin: boolean;
+}
+
+export type FeedbackReason = "false_positive" | "wrong_advice" | "unclear" | "other";
+
+export interface MetricValue {
+  value: number | null;
+  target?: number;
+  [detail: string]: number | string | null | undefined;
+}
+
+export interface AdminOverview {
+  days: number;
+  generated_at: string;
+  metrics: {
+    activation: MetricValue;
+    action: MetricValue;
+    false_positive: MetricValue;
+    safety: { optouts: number; note: string };
+  };
+  scans: {
+    per_day: ({ day: string } & Record<string, number | string>)[];
+    started_by_kind: Record<string, number>;
+    avg_seconds: number | null;
+    p95_seconds: number | null;
+    failing_checks: { check_id: string; count: number }[];
+    common_problems: { check_id: string; count: number }[];
+  };
+  funnel: { step: string; visitors: number }[];
+  live: { queued: number; oldest_queued_seconds: number; running: number; intel_age_hours: number | null };
+  feedback_by_check: { check_id: string; open: number }[];
+}
+
+export interface FeedbackItem {
+  id: number;
+  check_id: string;
+  check_version: string;
+  reason: FeedbackReason;
+  note: string | null;
+  created_at: string;
+  evidence: Record<string, unknown>;
+  resolved: boolean;
 }
 
 export type OAuthProvider = "google" | "microsoft";
@@ -198,6 +240,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ reason }),
     }),
+  feedback: (findingId: string, reason: FeedbackReason, note: string) =>
+    request<{ status: string }>(`/findings/${encodeURIComponent(findingId)}/feedback`, {
+      method: "POST",
+      body: JSON.stringify({ reason, note: note || null }),
+    }),
   restore: (findingId: string) =>
     request<ActionResult>(`/findings/${encodeURIComponent(findingId)}/restore`, {
       method: "POST",
@@ -224,6 +271,12 @@ export const api = {
   /** A full-page navigation, not a fetch: the API redirects to the provider and back. */
   oauthStartUrl: (provider: OAuthProvider, next?: string) =>
     `${BASE}/auth/oauth/${provider}/start` + (next ? `?next=${encodeURIComponent(next)}` : ""),
+
+  // operator dashboard (admins only; others get 404)
+  adminOverview: (days: number) => request<AdminOverview>(`/admin/overview?days=${days}`),
+  adminFeedback: () => request<FeedbackItem[]>("/admin/feedback"),
+  resolveFeedback: (id: number) =>
+    request<FeedbackItem>(`/admin/feedback/${id}/resolve`, { method: "POST" }),
 
   // sites
   sites: () => request<Site[]>("/sites"),

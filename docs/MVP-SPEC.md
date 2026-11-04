@@ -672,6 +672,8 @@ Commercial tools (Burp Suite, Qualys, Acunetix/Invicti) are used **only as produ
 - **Trust**: false-positive reports < 2 % of shown findings.
 - **Safety**: zero valid abuse complaints about scan traffic.
 
+*Implemented (operator analytics, after MVP):* every metric above is measured from a first-party event log (`events` table, 13-month retention; no cookies, no IP addresses, a daily-rotating visitor hash, GPC/DNT honoured) and shown to `CORPSEC_ADMIN_EMAILS` at `/admin`, with targets and on-track/below-goal status. Activation = new accounts / distinct anonymous scanners; Action = accounts ≥ 14 days old that fixed a finding (re-check or next scan) within 14 days; Trust = false alarms (reported via "This looks wrong" or dismissed as false positive) / problems shown; Safety shows opt-outs. The dashboard also shows checks per day, check time (avg, p95), the visit→scan→fix steps→account funnel, the most common problems, checks that failed to run, the live queue, intel data age, and the open "This looks wrong" reports (with copied evidence, since anonymous scans are purged after 7 days). `GET /metrics` (Prometheus, bearer `CORPSEC_METRICS_TOKEN`) exposes queue and scan gauges; `CORPSEC_SENTRY_DSN` enables error tracking with request bodies, cookies, headers and user data stripped.
+
 ## 19. Beyond MVP (for context only)
 
 - **v2**: Safe active web checks for verified owners (ZAP/Nuclei, gentle policy), authenticated scan of login pages, Slack/Teams alerts.

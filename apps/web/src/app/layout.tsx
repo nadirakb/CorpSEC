@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { AccountNav } from "@/components/AccountNav";
+import { PageViews } from "@/components/PageViews";
 import { t } from "@/lib/i18n";
 
 import "./globals.css";
@@ -51,6 +52,9 @@ export default async function RootLayout({
         <main id="main" className="mx-auto max-w-5xl px-5 pb-24 sm:px-8">
           {children}
         </main>
+        <Suspense>
+          <PageViews />
+        </Suspense>
         <footer className="mx-auto max-w-5xl border-t border-rule px-5 py-8 text-sm text-ink-soft sm:px-8">
           <p>{t.footer.responsible}</p>
           <nav aria-label="Footer" className="mt-3 flex flex-wrap gap-x-6 gap-y-2 font-semibold">

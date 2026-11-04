@@ -8,9 +8,10 @@ from typing import Any, Literal
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from corpsec_api.db import FindingCheck, FindingRow, Scan
+from corpsec_api import events
+from corpsec_api.db import FindingCheck, FindingRow, Scan, Site
 from corpsec_api.reporting import apply_grade, grade_findings, row_to_finding
-from corpsec_scanner import Check, ScanOptions, ScanStatus, Severity, run_scan
+from corpsec_scanner import Check, ScanOptions, ScanResult, ScanStatus, Severity, run_scan
 from corpsec_scanner.engine import ProgressCallback
 from corpsec_scanner.models import CheckRunStatus, FindingStatus, new_id, utcnow
 from corpsec_scanner.target import ScanTarget
@@ -86,8 +87,71 @@ async def execute_scan(
                     last_seen=f.last_seen,
                 )
             )
+        await _record_finished(session, scan, result)
         await session.commit()
     return result.status
+
+
+PROBLEMS = (Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW)
+
+
+async def _record_finished(session: AsyncSession, scan: Scan, result: ScanResult) -> None:
+    """Analytics: the scan's outcome, and problems that went away since the site's last scan."""
+    owner = None
+    if scan.site_id:
+        site = await session.get(Site, scan.site_id)
+        owner = site.owner_id if site else None
+    problems = [f for f in result.findings if f.severity in PROBLEMS]
+    ok_checks = {r.check_id for r in result.check_runs if r.status == CheckRunStatus.OK}
+    duration = (
+        (result.finished_at - scan.started_at).total_seconds()
+        if result.finished_at and scan.started_at
+        else None
+    )
+    events.record(
+        session,
+        events.SCAN_FINISHED,
+        user_id=owner,
+        kind="site" if scan.site_id else "anonymous",
+        status=str(result.status),
+        grade=scan.grade,
+        duration_s=round(duration, 1) if duration is not None else None,
+        problems=len(problems),
+        problem_checks=sorted({f.check_id for f in problems}),
+        failed_checks=sorted(
+            r.check_id for r in result.check_runs if r.status != CheckRunStatus.OK
+        ),
+    )
+    if not scan.site_id or result.status == ScanStatus.FAILED:
+        return
+    previous = await session.scalar(
+        select(Scan)
+        .where(
+            Scan.site_id == scan.site_id,
+            Scan.id != scan.id,
+            Scan.status.in_((ScanStatus.COMPLETED, ScanStatus.PARTIAL)),
+        )
+        .order_by(Scan.finished_at.desc())
+        .limit(1)
+    )
+    if previous is None:
+        return
+    before = (
+        await session.scalars(
+            select(FindingRow).where(
+                FindingRow.scan_id == previous.id,
+                FindingRow.severity.in_(PROBLEMS),
+                FindingRow.status == FindingStatus.OPEN,
+            )
+        )
+    ).all()
+    current = {(f.check_id, f.host, f.dedupe_key) for f in problems}
+    for row in before:
+        # only count it fixed if the check actually ran this time
+        if row.check_id in ok_checks and (row.check_id, row.host, row.dedupe_key) not in current:
+            events.record(
+                session, events.FINDING_FIXED, user_id=owner, check_id=row.check_id, via="rescan"
+            )
 
 
 async def _first_seen(session: AsyncSession, site_id: str) -> dict[tuple[str, str, str], Any]:
@@ -172,6 +236,14 @@ async def execute_recheck(
         if outcome == "fixed":
             row.status = FindingStatus.FIXED
             row.fixed_at = now
+            site = await session.get(Site, scan.site_id) if scan.site_id else None
+            events.record(
+                session,
+                events.FINDING_FIXED,
+                user_id=site.owner_id if site else None,
+                check_id=row.check_id,
+                via="recheck",
+            )
         elif outcome == "still_present":
             row.last_seen = now
             row.evidence = still[0].evidence.model_dump(mode="json")

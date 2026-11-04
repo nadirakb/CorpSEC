@@ -26,8 +26,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from corpsec_api import account, auth, emails, optout, sites
-from corpsec_api.db import AuditLog, FindingRow, Scan, ShareLink, Site, User, make_engine
+from corpsec_api import account, admin, auth, emails, events, optout, sites
+from corpsec_api.db import (
+    AuditLog,
+    FindingFeedback,
+    FindingRow,
+    Scan,
+    ShareLink,
+    Site,
+    User,
+    make_engine,
+)
 from corpsec_api.deps import (
     CurrentUser,
     MailerDep,
@@ -38,6 +47,7 @@ from corpsec_api.deps import (
     token_hash,
 )
 from corpsec_api.mailer import Mailer, make_mailer
+from corpsec_api.observability import init_error_tracking
 from corpsec_api.oidc import OidcClient
 from corpsec_api.policy import ScanRefusedError, check_target
 from corpsec_api.progress import Event, ProgressBus, RedisProgressBus
@@ -113,6 +123,11 @@ class ScanOut(BaseModel):
 class ShareIn(BaseModel):
     email: EmailStr
     note: str | None = Field(default=None, max_length=1000)
+
+
+class FeedbackIn(BaseModel):
+    reason: Literal["false_positive", "wrong_advice", "unclear", "other"]
+    note: str | None = Field(None, max_length=1000)
 
 
 class DismissIn(BaseModel):
@@ -192,6 +207,7 @@ def create_app(
     app.state.progress = progress
     app.state.settings = settings or get_settings()
     app.state.settings.check_production()
+    init_error_tracking(app.state.settings, "api")
     app.state.mailer = mailer or make_mailer(app.state.settings)
     app.state.oidc = OidcClient(oauth_http or httpx.AsyncClient(timeout=10))
     if app.state.settings.secret_key == DEV_SECRET and not app.state.settings.web_url.startswith(
@@ -207,6 +223,9 @@ def create_app(
     app.include_router(sites.router)
     app.include_router(optout.router)
     app.include_router(account.router)
+    app.include_router(events.router)
+    app.include_router(admin.router)
+    app.include_router(admin.metrics_router)
 
     @app.middleware("http")
     async def same_origin_writes(request: Request, call_next: Any) -> Any:
@@ -326,6 +345,13 @@ def create_app(
             await rate_limit(request, f"scan:ip:{ip}:d", settings.anon_scans_per_day, 86400)
         scan = new_scan(target, body.target, site_id=None, ip=ip)
         session.add(scan)
+        events.record_request(
+            session,
+            request,
+            events.SCAN_STARTED,
+            user_id=user.id if user else None,
+            kind="signed_in" if user else "anonymous",
+        )
         session.add(
             AuditLog(
                 actor_user_id=user.id if user else None,
@@ -510,6 +536,7 @@ def create_app(
                 target=f"{scan.id}->{body.email.lower()}",
             )
         )
+        events.record(session, events.REPORT_SHARED, user_id=user.id)
         await session.commit()
         await mailer.send(
             emails.share_report(
@@ -563,6 +590,13 @@ def create_app(
             )
         row.status = FindingStatus.DISMISSED
         row.dismissed_reason = body.reason
+        events.record(
+            session,
+            events.FINDING_DISMISSED,
+            user_id=user.id if user else None,
+            check_id=row.check_id,
+            reason=body.reason,
+        )
         session.add(
             AuditLog(
                 actor_ip=client_ip(request),
@@ -576,6 +610,39 @@ def create_app(
         await regrade(session, scan, checks)
         await session.commit()
         return RecheckOut(result="still_present", grade=scan.grade, score=scan.score)
+
+    @app.post("/v1/findings/{finding_id}/feedback", status_code=202)
+    async def finding_feedback(
+        finding_id: str,
+        body: FeedbackIn,
+        request: Request,
+        session: SessionDep,
+        user: OptionalUser,
+    ) -> dict[str, str]:
+        """ "This looks wrong": reviewed by the CorpSEC team to fix the check (spec §18)."""
+        row = await finding_or_404(session, finding_id, user)
+        await rate_limit(request, f"feedback:ip:{client_ip(request)}", 20, 86400)
+        session.add(
+            FindingFeedback(
+                finding_id=row.id,
+                check_id=row.check_id,
+                check_version=row.check_version,
+                reason=body.reason,
+                note=body.note,
+                user_id=user.id if user else None,
+                evidence=row.evidence,
+            )
+        )
+        events.record_request(
+            session,
+            request,
+            events.FINDING_REPORTED,
+            user_id=user.id if user else None,
+            check_id=row.check_id,
+            reason=body.reason,
+        )
+        await session.commit()
+        return {"status": "received"}
 
     @app.post("/v1/findings/{finding_id}/restore")
     async def restore(

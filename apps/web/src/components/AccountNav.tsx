@@ -37,6 +37,11 @@ export function AccountNav() {
       <Link href="/dashboard" className={navBtn}>
         {t.account.dashboard}
       </Link>
+      {me.is_admin && (
+        <Link href="/admin" className="text-sm font-semibold text-ink-soft underline-offset-4 hover:underline">
+          {t.account.admin}
+        </Link>
+      )}
       <Link href="/account" className="text-sm font-semibold text-ink-soft underline-offset-4 hover:underline">
         {t.account.settings}
       </Link>
