@@ -11,7 +11,7 @@ import {
   type Finding,
 } from "@/lib/api";
 import { t } from "@/lib/i18n";
-import { attributions, itemLabel } from "@/lib/report";
+import { attributions, formatPoints, itemLabel } from "@/lib/report";
 import { track } from "@/lib/track";
 
 import { SeverityTag } from "./SeverityTag";
@@ -35,6 +35,8 @@ export function FindingCard({ findings, defaultOpen = false, canAct = true, onCh
   const problem = finding.severity !== "pass" && finding.severity !== "info";
   const fixed = finding.status === "fixed";
   const dismissed = finding.status === "dismissed";
+  // a card can hold several findings of one check (e.g. TLS 1.0 and 1.1)
+  const points = findings.reduce((sum, f) => sum + (f.points ?? 0), 0);
 
   return (
     <article
@@ -57,6 +59,9 @@ export function FindingCard({ findings, defaultOpen = false, canAct = true, onCh
               <SeverityTag severity={fixed ? "pass" : finding.severity} />
               {finding.confidence === "possible" && problem && (
                 <span className="text-sm text-ink-soft">({t.finding.maybe})</span>
+              )}
+              {points > 0 && (
+                <span className="text-sm tabular-nums text-ink-soft">{t.results.pointsLost(formatPoints(points))}</span>
               )}
             </span>
             <span className={`mt-2 block text-lg font-semibold ${fixed || dismissed ? "line-through decoration-1 opacity-70" : ""}`}>

@@ -137,6 +137,21 @@ export const en = {
     fixFirstLede: "These give you the most protection for the least effort.",
     nothingToFix: "Nothing urgent to fix. Nice work.",
     stagesHeading: "By area",
+    pointsLost: (p: string) => `−${p} points`,
+    noPointsLost: "no points lost",
+    howTitle: "How your grade is worked out",
+    howEquation: (lost: string, score: number, letter: string, range: string) =>
+      `Every site starts with 100 points. Each problem takes some away: ${lost} in total here, so the score is ${score}. A score of ${range} is a ${letter}.`,
+    howAreas: "The letter for each area only counts that area's problems. The overall score adds up what every area lost, so several small problems in different areas can lower it more than any single area shows.",
+    howCapped: (letter: string) => `The overall grade is then capped at ${letter}, see the note at the top.`,
+    howRulesTitle: "The rules",
+    howRules: [
+      "Each problem costs points by how serious it is: serious 40, important 15, should fix 6, good to fix 2. \"Good to know\" items and passed checks cost nothing.",
+      "Within one area, the third and later problems of the same kind cost half, so one weak area can't sink the whole score.",
+      "Letters: A from 90, B from 80, C from 65, D from 50, F below 50. A+ needs 95 or more, nothing worse than \"good to fix\", and secure-connection, script and email protection in place.",
+      "Any serious problem makes the grade F, and any important problem caps it at C, whatever the score.",
+      "Problems you fixed or hid (except serious ones you didn't mark as a false alarm) no longer count.",
+    ],
     allResults: "All results",
     groups: {
       critical: "Fix now",

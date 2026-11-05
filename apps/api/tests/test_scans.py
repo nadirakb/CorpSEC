@@ -60,7 +60,12 @@ async def test_scan_end_to_end(
 
     # graded at completion: one high finding -> 85 points, capped at C
     assert (body["score"], body["grade"], body["grade_caps"]) == (85, "C", ["high"])
-    assert body["stage_grades"]["connection"] == {"score": 85, "letter": "C", "counted": 1}
+    assert body["stage_grades"]["connection"] == {
+        "score": 85,
+        "letter": "C",
+        "counted": 1,
+        "lost": 15,
+    }
     assert body["stage_grades"]["email"]["letter"] == "A"
     high = body["findings"][0]  # sorted: problems first
     assert high["check_id"] == "CONN-002"
@@ -78,3 +83,20 @@ async def test_scan_end_to_end(
     async with sessions() as session:
         audit = (await session.scalars(select(AuditLog))).all()
     assert [(a.action, a.target) for a in audit] == [("scan.create", "www.example.com")]
+
+
+async def test_report_explains_points_lost(
+    client: httpx.AsyncClient, sessions: async_sessionmaker[AsyncSession]
+) -> None:
+    def no_redirect(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="hi")  # HTTP doesn't redirect to HTTPS: important
+
+    scan_id = (await client.post("/v1/scans", json={"target": "bakery.az"})).json()["id"]
+    await execute_scan(sessions, scan_id, http_checks(), mock_options(no_redirect))
+    data = (await client.get(f"/v1/scans/{scan_id}")).json()
+    assert data["score"] == 85 and data["grade"] == "C"  # capped by the important problem
+    assert data["points_lost"] == 15
+    assert data["stage_grades"]["connection"]["lost"] == 15
+    points = {f["check_id"]: f["points"] for f in data["findings"]}
+    assert points["CONN-002"] == 15
+    assert points["CONN-001"] is None  # a pass costs nothing

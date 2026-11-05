@@ -6,7 +6,18 @@ import { useId, useState } from "react";
 import { api, ApiError, type Scan } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { track } from "@/lib/track";
-import { capApplied, fixFirst, gradeTone, groupFindings, isProblem, REDACTED_MARK, STAGES } from "@/lib/report";
+import {
+  capApplied,
+  fixFirst,
+  formatPoints,
+  gradeTone,
+  groupFindings,
+  isProblem,
+  letterForScore,
+  letterRange,
+  REDACTED_MARK,
+  STAGES,
+} from "@/lib/report";
 
 import { FindingCard } from "./FindingCard";
 import { GradeSeal } from "./GradeSeal";
@@ -98,10 +109,18 @@ export function Results({ scan, share = null, onChanged }: Props) {
                   <span className="sr-only">{t.results.gradeLabel(g.letter)}: </span>
                   {g.letter}
                 </p>
+                {g.lost !== undefined && (
+                  <p className="mt-1 text-sm tabular-nums text-ink-soft">
+                    {g.lost > 0 ? t.results.pointsLost(formatPoints(g.lost)) : t.results.noPointsLost}
+                  </p>
+                )}
               </li>
             );
           })}
         </ul>
+        {scan.score !== null && scan.grade && scan.points_lost !== undefined && (
+          <GradeExplained score={scan.score} grade={scan.grade} lost={scan.points_lost} capped={capApplied(scan)} />
+        )}
       </section>
 
       <section aria-labelledby="fix-first-heading" className="rise" style={{ animationDelay: "160ms" }}>
@@ -270,5 +289,26 @@ function SendToIt({ scanId }: { scanId: string }) {
         </>
       )}
     </form>
+  );
+}
+
+/** Why the overall letter isn't an average of the area letters (spec §9). */
+function GradeExplained({ score, grade, lost, capped }: { score: number; grade: string; lost: number; capped: boolean }) {
+  const byScore = letterForScore(score);
+  return (
+    <div className="mt-4 rounded-xl border border-rule bg-raised p-5">
+      <h3 className="font-semibold">{t.results.howTitle}</h3>
+      <p className="mt-2">{t.results.howEquation(formatPoints(lost), score, byScore, letterRange(byScore))}</p>
+      {capped && <p className="mt-2">{t.results.howCapped(grade)}</p>}
+      <p className="mt-2 text-ink-soft">{t.results.howAreas}</p>
+      <details className="mt-3 text-sm">
+        <summary className="cursor-pointer font-semibold">{t.results.howRulesTitle}</summary>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-ink-soft">
+          {t.results.howRules.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      </details>
+    </div>
   );
 }

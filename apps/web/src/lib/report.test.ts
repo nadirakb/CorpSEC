@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Finding, Scan } from "./api";
-import { attributions, capApplied, fixFirst, gradeTone, groupFindings, itemLabel, stageStates } from "./report";
+import { attributions, capApplied, fixFirst, formatPoints, gradeTone, groupFindings, itemLabel, letterRange, stageStates } from "./report";
 
 function finding(id: string, over: Partial<Finding> = {}): Finding {
   return {
@@ -118,5 +118,14 @@ describe("itemLabel", () => {
     expect(itemLabel(finding("a", { dedupe_key: "wordpress-plugin:contact-form-7" }))).toBe("contact-form-7");
     expect(itemLabel(finding("b", { dedupe_key: "wordpress-theme:astra" }))).toBe("astra");
     expect(itemLabel(finding("c", { dedupe_key: "TLSv1.0" }))).toBe("TLSv1.0");
+  });
+});
+
+describe("grade explanation helpers", () => {
+  it("formats points and letter ranges", () => {
+    expect(formatPoints(6)).toBe("6");
+    expect(formatPoints(7.5)).toBe("7.5");
+    expect(letterRange("D")).toBe("50–64");
+    expect(letterRange("F")).toBe("0–49");
   });
 });
