@@ -53,7 +53,12 @@ from corpsec_api.policy import ScanRefusedError, check_target
 from corpsec_api.progress import Event, ProgressBus, RedisProgressBus
 from corpsec_api.queue import ArqScanQueue, ScanQueue
 from corpsec_api.ratelimit import MemoryRateLimiter, RateLimiter, RedisRateLimiter
-from corpsec_api.reporting import explained_findings
+from corpsec_api.reporting import (
+    explained_findings,
+    grade_findings,
+    row_to_finding,
+    stage_lookup,
+)
 from corpsec_api.scans import new_scan, regrade
 from corpsec_api.settings import DEV_SECRET, Settings, get_settings
 from corpsec_checks.explain import Explanation, load_templates
@@ -86,12 +91,16 @@ class FindingOut(BaseModel):
     fixed_at: datetime | None
     dismissed_reason: str | None
     explanation: Explanation | None
+    points: float | None = None
+    """Points this problem takes off the score (None: it doesn't count)."""
 
 
 class StageGradeOut(BaseModel):
     score: int
     letter: str
     counted: int
+    lost: float = 0
+    """Points this area's problems take off the overall score."""
 
 
 class ScanOut(BaseModel):
@@ -114,6 +123,8 @@ class ScanOut(BaseModel):
     stage_grades: dict[str, StageGradeOut]
     fix_first: list[str]
     """Finding ids, most important first."""
+    points_lost: float = 0
+    """Sum of every area's ``lost``: the overall score is 100 minus this (spec §9.1)."""
     error: str | None
     check_runs: list[dict[str, Any]]
     findings: list[FindingOut]
@@ -381,6 +392,14 @@ def create_app(
         if scan is None:
             raise StarletteHTTPException(404, "We couldn't find that scan.")
         redacted, can_act = await viewer_access(session, scan, user, share)
+        # How each problem moved the score, so the report can show why the grade is what it is.
+        report = grade_findings([row_to_finding(r) for r in scan.findings], checks)
+        stage_of = stage_lookup(checks)
+        lost: dict[str, float] = {}
+        for row in scan.findings:
+            stage = stage_of(row.check_id)
+            if stage is not None and row.id in report.deductions:
+                lost[stage] = lost.get(stage, 0) + report.deductions[row.id]
         return ScanOut(
             id=scan.id,
             site_id=scan.site_id,
@@ -395,9 +414,11 @@ def create_app(
             grade=scan.grade,
             grade_caps=scan.grade_caps or [],
             stage_grades={
-                k: StageGradeOut.model_validate(v) for k, v in (scan.stage_grades or {}).items()
+                k: StageGradeOut.model_validate({**v, "lost": lost.get(k, 0)})
+                for k, v in (scan.stage_grades or {}).items()
             },
             fix_first=scan.fix_first or [],
+            points_lost=sum(lost.values()) if scan.grade else 0,
             error=scan.error,
             check_runs=scan.check_runs or [],
             findings=[
@@ -417,6 +438,7 @@ def create_app(
                     fixed_at=f.fixed_at,
                     dismissed_reason=f.dismissed_reason,
                     explanation=explanation,
+                    points=report.deductions.get(f.id),
                 )
                 for f, explanation in explained_findings(
                     scan, scan.findings, lang, redacted=redacted

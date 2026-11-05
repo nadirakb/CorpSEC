@@ -116,3 +116,14 @@ export function attributions(f: Finding): { holders: [string, { notice: string; 
   const records = (observed.vulnerabilities ?? []).map((v) => v.url).filter((u): u is string => !!u);
   return { holders, records };
 }
+
+/** "6", "7.5": points without a trailing ".0". */
+export function formatPoints(points: number): string {
+  return Number.isInteger(points) ? String(points) : points.toFixed(1);
+}
+
+/** The score range that gives a letter, for "60 is a D (50–64)". */
+export function letterRange(letter: string): string {
+  const ranges: Record<string, string> = { "A+": "95–100", A: "90–100", B: "80–89", C: "65–79", D: "50–64", F: "0–49" };
+  return ranges[letter] ?? "";
+}

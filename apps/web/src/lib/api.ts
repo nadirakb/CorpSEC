@@ -39,12 +39,16 @@ export interface Finding {
   fixed_at: string | null;
   dismissed_reason: string | null;
   explanation: Explanation | null;
+  /** Points this problem takes off the score; null when it doesn't count. */
+  points?: number | null;
 }
 
 export interface StageGrade {
   score: number;
   letter: string;
   counted: number;
+  /** Points this area's problems take off the overall score. */
+  lost?: number;
 }
 
 export interface Scan {
@@ -65,6 +69,8 @@ export interface Scan {
   grade_caps: string[];
   stage_grades: Partial<Record<Stage, StageGrade>>;
   fix_first: string[];
+  /** The overall score is 100 minus this. */
+  points_lost?: number;
   error: string | null;
   check_runs: { check_id: string; stage: Stage; status: string }[];
   findings: Finding[];
